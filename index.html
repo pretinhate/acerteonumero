@@ -5,9 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Adivinhe o Número</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script type="module" src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js"></script>
-    <script type="module" src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js"></script>
-    <script type="module" src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js"></script>
+    
+    <!-- ATUALIZADO: Usando a versão 12.4.0 do Firebase SDK (Modular Imports) -->
+    <script type="module" src="https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js"></script>
+    <script type="module" src="https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js"></script>
+    <script type="module" src="https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js"></script>
 
     <style>
         /* Define a fonte Inter e estilização de foco */
@@ -241,19 +243,20 @@
         // =========================================================================
         // 1. IMPORTAÇÕES E CONFIGURAÇÃO FIREBASE
         // =========================================================================
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, addDoc, onSnapshot, collection, query, limit, orderBy, serverTimestamp, getDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // **IMPORTANTE:** As URLs do SDK foram atualizadas para a versão 12.4.0
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
+        import { getFirestore, addDoc, onSnapshot, collection, query, limit, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
 
-        // CONFIGURAÇÃO ATUALIZADA DO SEU NOVO PROJETO FIREBASE (acerteonumero-27ac7)
+        // CONFIGURAÇÃO ATUALIZADA DO SEU NOVO PROJETO FIREBASE (acerteonumero-v2)
         const firebaseConfig = {
-            apiKey: "AIzaSyD2QkLUKPKRPhJNSjPCmG7qYj8C9bETaIU",
-            authDomain: "acerteonumero-27ac7.firebaseapp.com",
-            projectId: "acerteonumero-27ac7",
-            storageBucket: "acerteonumero-27ac7.firebasestorage.app",
-            messagingSenderId: "176926436909",
-            appId: "1:176926436909:web:ad315242ed8f7b35a492a4",
-            measurementId: "G-336XH8KH5S"
+            apiKey: "AIzaSyADfUsXQwICBO3u6JLVIZveyNQmVfIi-lM",
+            authDomain: "acerteonumero-v2.firebaseapp.com",
+            projectId: "acerteonumero-v2",
+            storageBucket: "acerteonumero-v2.firebasestorage.app",
+            messagingSenderId: "180559249457",
+            appId: "1:180559249457:web:3757e65c19a7094d75d510",
+            measurementId: "G-E76PVZRSTR"
         };
         
         // =========================================================================
@@ -511,7 +514,9 @@
                     window.localStorage.removeItem('emailForSignIn');
                     // O estado de autenticação será atualizado por onAuthStateChanged
                 } catch (error) {
-                    alert(`Erro ao completar o login por link: ${error.message}`);
+                    // Use a div para mensagens, pois alert() é ruim para UX
+                    document.getElementById('authMessage').textContent = `Erro ao completar o login por link: ${error.message}. Tente novamente.`;
+                    document.getElementById('authMessage').classList.add('text-lose');
                     window.history.replaceState({}, document.title, window.location.pathname); // Limpa o URL
                 }
             }
@@ -595,13 +600,16 @@
                 const attemptsText = score.attempts === 1 ? 'tentativa' : 'tentativas';
                 const rankText = index < 3 ? 'text-accent font-extrabold' : 'text-gray-300 font-bold';
                 
+                // Formata o tempo para ter 1 casa decimal
+                const timeFormatted = score.time ? score.time.toFixed(1) : '0.0';
+
                 item.innerHTML = `
                     <div class="flex items-center space-x-3">
                         <span class="text-xl ${rankText}">${rank}.</span>
                         <span class="font-medium ${isCurrentUser ? 'text-white' : 'text-gray-200'}">${score.nickname}</span>
                     </div>
                     <div class="text-right">
-                        <p class="text-sm text-gray-400">${score.time.toFixed(1)}s</p>
+                        <p class="text-sm text-gray-400">${timeFormatted}s</p>
                         <p class="text-xs text-gray-500">${score.attempts} ${attemptsText}</p>
                     </div>
                 `;
@@ -612,6 +620,8 @@
         function subscribeToLeaderboard() {
             if (!db) return;
             isLeaderboardActive = true;
+            
+            // Query: Menor número de tentativas (asc), depois menor tempo (asc), limitando a 10 resultados
             const q = query(collection(db, "leaderboard"), orderBy("attempts", "asc"), orderBy("time", "asc"), limit(10));
 
             onSnapshot(q, (snapshot) => {
@@ -702,6 +712,7 @@
             checkButton.disabled = true;
             resetButton.classList.remove('hidden');
 
+            // Salva apenas se o usuário estiver logado e tiver ganhado
             if (win && userId) {
                 showScoreModal(attemptsMade, timeElapsed);
             }
@@ -709,7 +720,9 @@
 
         function showScoreModal(attempts, time) {
             modalMessage.innerHTML = `Você conseguiu em **${attempts} tentativas** e **${time.toFixed(1)} segundos**!`;
-            nicknameInput.value = currentUser?.displayName || currentUser?.email.split('@')[0] || '';
+            // Tenta pré-preencher o nickname com o nome de exibição, ou parte do email
+            const defaultNickname = currentUser?.displayName || currentUser?.email.split('@')[0] || '';
+            nicknameInput.value = defaultNickname.substring(0, 12); // Limita a 12 caracteres
             
             // Limpa o estado do modal
             modalStatusMessage.textContent = "";
@@ -741,4 +754,18 @@
         saveScoreButton.addEventListener('click', () => {
             const nickname = nicknameInput.value.trim();
             if (nickname) {
-                saveScore(nickname, attemptsMade, time
+                saveScore(nickname, attemptsMade, timeElapsed);
+            }
+        });
+
+        closeModalButton.addEventListener('click', hideScoreModal);
+        
+        // =========================================================================
+        // 7. INICIALIZAÇÃO GERAL
+        // =========================================================================
+        
+        initFirebase(); 
+
+    </script>
+</body>
+</html>
