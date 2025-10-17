@@ -245,16 +245,16 @@
         import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, addDoc, onSnapshot, collection, query, limit, orderBy, serverTimestamp, getDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // CONFIGURAÇÃO ATUALIZADA DO SEU NOVO PROJETO FIREBASE
-const firebaseConfig = {
-    apiKey: "AIzaSyD2QkLUKPKRPhJNSjPCmG7qYj8C9bETaIU",
-    authDomain: "acerteonumero-27ac7.firebaseapp.com",
-    projectId: "acerteonumero-27ac7",
-    storageBucket: "acerteonumero-27ac7.firebasestorage.app",
-    messagingSenderId: "176926436909",
-    appId: "1:176926436909:web:ad315242ed8f7b35a492a4",
-    measurementId: "G-336XH8KH5S"
-};
+        // CONFIGURAÇÃO ATUALIZADA DO SEU NOVO PROJETO FIREBASE: acerteonumero-27ac7
+        const firebaseConfig = {
+            apiKey: "AIzaSyD2QkLUKPKRPhJNSjPCmG7qYj8C9bETaIU",
+            authDomain: "acerteonumero-27ac7.firebaseapp.com",
+            projectId: "acerteonumero-27ac7",
+            storageBucket: "acerteonumero-27ac7.firebasestorage.app",
+            messagingSenderId: "176926436909",
+            appId: "1:176926436909:web:ad315242ed8f7b35a492a4",
+            measurementId: "G-336XH8KH5S"
+        };
         
         // =========================================================================
         // 2. VARIÁVEIS GLOBAIS E INICIALIZAÇÃO
@@ -302,6 +302,12 @@ const firebaseConfig = {
         const loginTab = document.getElementById('loginTab');
         const registerTab = document.getElementById('registerTab');
         const magicLinkTab = document.getElementById('magicLinkTab');
+        const loginEmailInput = document.getElementById('loginEmail');
+        const loginPasswordInput = document.getElementById('loginPassword');
+        const registerEmailInput = document.getElementById('registerEmail');
+        const registerPasswordInput = document.getElementById('registerPassword');
+        const magicLinkEmailInput = document.getElementById('magicLinkEmail');
+        const resetEmailInput = document.getElementById('resetEmail');
         const loginError = document.getElementById('loginError');
         const registerError = document.getElementById('registerError');
         const forgotPasswordLink = document.getElementById('forgotPasswordLink');
@@ -399,5 +405,228 @@ const firebaseConfig = {
                 registerForm.classList.remove('hidden');
                 registerTab.classList.add('active');
             } else if (mode === 'magiclink') {
+                magicLinkForm.classList.remove('hidden');
+                magicLinkTab.classList.add('active');
+            } else if (mode === 'reset') {
+                resetForm.classList.remove('hidden');
+                forgotPasswordLink.classList.add('hidden'); // Esconde o link de esqueci a senha
+            }
+        }
 
-                magicLinkForm.classList.remove
+        function displayAuthError(formId, message) {
+            const errorElement = document.getElementById(`${formId}Error`);
+            if (errorElement) {
+                errorElement.textContent = message;
+                errorElement.classList.remove('hidden');
+            }
+        }
+
+        // --- Handlers de Form Submits ---
+
+        loginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = loginEmailInput.value;
+            const password = loginPasswordInput.value;
+            loginError.classList.add('hidden');
+
+            signInWithEmailAndPassword(auth, email, password)
+                .then((userCredential) => {
+                    // Logado com sucesso - handleAuthStateChange cuida do resto
+                })
+                .catch((error) => {
+                    let msg = "Erro no Login. Verifique seu e-mail e senha.";
+                    if (error.code === 'auth/user-not-found') {
+                        msg = "Usuário não encontrado.";
+                    } else if (error.code === 'auth/wrong-password') {
+                        msg = "Senha incorreta.";
+                    }
+                    displayAuthError('login', msg);
+                });
+        });
+
+        registerForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = registerEmailInput.value;
+            const password = registerPasswordInput.value;
+            registerError.classList.add('hidden');
+
+            createUserWithEmailAndPassword(auth, email, password)
+                .then((userCredential) => {
+                    // Conta criada e logada com sucesso
+                    alert('Conta criada com sucesso! Você está logado.');
+                    // handleAuthStateChange cuida do resto
+                })
+                .catch((error) => {
+                    let msg = "Erro ao criar conta.";
+                    if (error.code === 'auth/weak-password') {
+                        msg = "A senha deve ter no mínimo 6 caracteres.";
+                    } else if (error.code === 'auth/email-already-in-use') {
+                        msg = "Este e-mail já está em uso.";
+                    }
+                    displayAuthError('register', msg);
+                });
+        });
+
+        magicLinkForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = magicLinkEmailInput.value;
+            magicLinkMessage.classList.add('hidden');
+
+            const actionCodeSettings = {
+                url: window.location.href, // Redirecionar para a página atual
+                handleCodeInApp: true,
+            };
+
+            sendSignInLinkToEmail(auth, email, actionCodeSettings)
+                .then(() => {
+                    magicLinkMessage.textContent = `Link de login enviado para ${email}. Verifique sua caixa de entrada.`;
+                    magicLinkMessage.classList.remove('hidden');
+                    magicLinkMessage.classList.remove('text-lose');
+                    magicLinkMessage.classList.add('text-green-400');
+                    window.localStorage.setItem('emailForSignIn', email);
+                })
+                .catch((error) => {
+                    console.error("Erro ao enviar link mágico:", error);
+                    magicLinkMessage.textContent = "Erro ao enviar link. Verifique o e-mail e se o método está ativado no Firebase.";
+                    magicLinkMessage.classList.remove('hidden');
+                    magicLinkMessage.classList.remove('text-green-400');
+                    magicLinkMessage.classList.add('text-lose');
+                });
+        });
+
+        function handleMagicLinkSignIn() {
+            if (isSignInWithEmailLink(auth, window.location.href)) {
+                let email = window.localStorage.getItem('emailForSignIn');
+                
+                if (!email) {
+                    // Se o usuário abriu em outro dispositivo, solicitamos o e-mail
+                    email = window.prompt('Por favor, confirme seu e-mail para completar o login.');
+                }
+
+                if (email) {
+                    signInWithEmailLink(auth, email, window.location.href)
+                        .then(() => {
+                            window.localStorage.removeItem('emailForSignIn');
+                            alert('Login com Link Mágico bem-sucedido!');
+                            // A página será recarregada por handleAuthStateChange
+                        })
+                        .catch((error) => {
+                            console.error("Erro ao completar login com link:", error);
+                            alert('Erro no login com Link Mágico. O link pode ter expirado ou ser inválido.');
+                        });
+                } else {
+                    alert('Login cancelado. O e-mail é necessário para finalizar.');
+                }
+            }
+        }
+
+        resetForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = resetEmailInput.value;
+            resetMessage.classList.add('hidden');
+
+            sendPasswordResetEmail(auth, email)
+                .then(() => {
+                    resetMessage.textContent = `Link de redefinição enviado para ${email}. Verifique sua caixa de entrada.`;
+                    resetMessage.classList.remove('hidden');
+                    resetMessage.classList.remove('text-lose');
+                    resetMessage.classList.add('text-green-400');
+                })
+                .catch((error) => {
+                    resetMessage.textContent = "Erro ao enviar link. Verifique se o e-mail está cadastrado.";
+                    resetMessage.classList.remove('hidden');
+                    resetMessage.classList.remove('text-green-400');
+                    resetMessage.classList.add('text-lose');
+                });
+        });
+        
+        // --- Eventos da UI ---
+        
+        loginTab.addEventListener('click', () => switchAuthMode('login'));
+        registerTab.addEventListener('click', () => switchAuthMode('register'));
+        magicLinkTab.addEventListener('click', () => switchAuthMode('magiclink'));
+        forgotPasswordLink.addEventListener('click', () => switchAuthMode('reset'));
+        backToLoginLink.addEventListener('click', () => switchAuthMode('login'));
+        signOutButton.addEventListener('click', () => signOut(auth));
+
+
+        // =========================================================================
+        // 4. LÓGICA DO PLACAR (FIRESTORE)
+        // =========================================================================
+
+        function subscribeToLeaderboard() {
+            if (!db) return; 
+
+            // Query: 10 melhores scores, ordenados por tentativas (asc) e tempo (asc)
+            const scoresQuery = query(
+                collection(db, "scores"),
+                orderBy("attempts", "asc"),
+                orderBy("timeElapsed", "asc"),
+                limit(10)
+            );
+
+            // Observador em tempo real
+            onSnapshot(scoresQuery, (snapshot) => {
+                let html = '';
+                let rank = 1;
+                loadingMessage.classList.add('hidden'); // Esconde a mensagem de carregamento
+
+                snapshot.forEach((doc) => {
+                    const score = doc.data();
+                    const isCurrentUser = score.userId === userId;
+                    const rowClass = isCurrentUser ? 'bg-accent/20 border-accent' : 'bg-gray-700 border-gray-600';
+                    const rankColor = rank === 1 ? 'text-yellow-400' : rank === 2 ? 'text-gray-300' : rank === 3 ? 'text-orange-300' : 'text-gray-400';
+
+                    html += `
+                        <div class="flex items-center justify-between p-3 rounded-lg border ${rowClass} transition duration-200">
+                            <div class="flex items-center space-x-3">
+                                <span class="text-xl font-extrabold ${rankColor}">#${rank}</span>
+                                <span class="text-white font-medium truncate">${score.nickname || 'Anônimo'}</span>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-sm text-gray-400 block">${score.attempts} tentativas</span>
+                                <span class="text-sm font-bold text-accent block">${score.timeElapsed}s</span>
+                            </div>
+                        </div>
+                    `;
+                    rank++;
+                });
+
+                leaderboardContainer.innerHTML = html || '<p class="text-gray-400 text-center">Nenhum recorde ainda. Seja o primeiro!</p>';
+                isLeaderboardActive = true;
+            }, (error) => {
+                console.error("Erro ao carregar placar: ", error);
+                document.getElementById('leaderboardError').textContent = "Erro ao carregar placar. Tente recarregar a página.";
+                document.getElementById('leaderboardError').classList.remove('hidden');
+                loadingMessage.classList.add('hidden');
+                isLeaderboardActive = false;
+            });
+        }
+
+        async function saveScore(nickname, attempts, timeElapsed) {
+            if (!userId) {
+                modalStatusMessage.textContent = "Erro: Você não está logado para salvar seu recorde.";
+                modalStatusMessage.classList.remove('hidden');
+                modalStatusMessage.classList.add('text-lose');
+                return;
+            }
+
+            try {
+                // 1. Verificar se o usuário já tem um score melhor
+                const userScoreRef = doc(db, "scores", userId);
+                const userScoreSnap = await getDoc(userScoreRef);
+                let canSave = true;
+
+                if (userScoreSnap.exists()) {
+                    const existingScore = userScoreSnap.data();
+                    // Prioridade: Menos tentativas é melhor. Se as tentativas forem iguais, menor tempo é melhor.
+                    if (attempts > existingScore.attempts) {
+                        canSave = false;
+                    } else if (attempts === existingScore.attempts && timeElapsed >= existingScore.timeElapsed) {
+                        canSave = false;
+                    }
+                }
+
+                if (!canSave) {
+                    modalStatusMessage.textContent = "Você já tem um recorde melhor!";
+                    modalStatusMessage.classList.remove('hidden');
