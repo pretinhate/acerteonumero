@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adivinhe o Número</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module" src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js"></script>
+    <script type="module" src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js"></script>
+    <script type="module" src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js"></script>
+
+    <style>
+        /* Define a fonte Inter e estilização de foco */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+        
+        /* Cor de foco alterada para o novo 'accent' dourado */
+        input:focus, button:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.5); /* Cor Gold/Amber mais brilhante */
+        }
+        
+        body {
+            min-height: 100vh;
+            margin: 0;
+            background-color: #0f172a; /* Fundo AZUL ESCURO PROFUNDO (Slate 900) */
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .modal-overlay {
+            background-color: rgba(0, 0, 0, 0.7);
+        }
+
+        /* Estilo para que o cursor de texto nos inputs seja branco */
+        input {
+            caret-color: white;
+        }
+        
+        /* Estilo para abas de autenticação */
+        .auth-tab {
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .auth-tab.active {
+            border-bottom: 3px solid #fbbf24;
+            color: white;
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        'primary-bg': '#1e293b',  /* Base do card (Slate 800) */
+                        'accent': '#fbbf24',      /* Gold/Amber CLARO para elementos ativos */
+                        'win': '#f59e0b',         /* Darker Amber para sucesso */
+                        'lose': '#ef4444',        /* Red para falha/erro */
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="flex flex-col lg:flex-row items-start justify-center p-4 gap-8">
+
+    <div id="auth-panel" class="w-full max-w-xs sm:max-w-sm bg-primary-bg p-6 rounded-xl shadow-2xl border border-gray-700 order-1 lg:order-1">
+        <h2 class="text-2xl font-bold text-white mb-4 text-center">🔐 Acesso ao Placar</h2>
+        
+        <div id="authStatusContainer" class="p-4 rounded-lg bg-gray-700 mb-4 text-center">
+            <div id="loggedInStatus" class="hidden">
+                <p class="text-gray-300 text-sm mb-2">Logado como:</p>
+                <p id="userEmailDisplay" class="text-accent font-bold truncate text-lg"></p>
+                <button
+                    id="signOutButton"
+                    class="mt-3 w-full py-2 text-sm font-bold text-primary-bg bg-lose hover:bg-red-600 rounded-lg transition duration-200"
+                >
+                    Sair (Sign Out)
+                </button>
+            </div>
+            
+            <div id="loggedOutStatus" class="text-gray-400">
+                <p id="authMessage" class="font-medium">Faça login ou registre-se para jogar e salvar seu recorde!</p>
+            </div>
+        </div>
+
+        <div id="authForms" class="space-y-4">
+            <div class="flex border-b border-gray-700 mb-4 text-sm font-medium">
+                <div id="loginTab" class="auth-tab active flex-1 py-2 text-center text-gray-400">Login</div>
+                <div id="registerTab" class="auth-tab flex-1 py-2 text-center text-gray-400">Registrar</div>
+                <div id="magicLinkTab" class="auth-tab flex-1 py-2 text-center text-gray-400">Link Mágico</div>
+            </div>
+
+            <form id="loginForm" class="space-y-4">
+                <input type="email" id="loginEmail" placeholder="Email" class="w-full p-3 rounded-lg border-2 border-gray-600 bg-gray-700 text-white placeholder-gray-400">
+                <input type="password" id="loginPassword" placeholder="Senha" class="w-full p-3 rounded-lg border-2 border-gray-600 bg-gray-700 text-white placeholder-gray-400">
+                <button type="submit" class="w-full px-6 py-3 text-lg font-bold text-primary-bg bg-accent hover:bg-win rounded-lg transition duration-200">
+                    Entrar
+                </button>
+                <p id="loginError" class="text-lose text-center text-sm font-medium hidden"></p>
+                <div id="forgotPasswordLink" class="text-center text-sm text-gray-400 hover:text-accent cursor-pointer pt-2">Esqueceu a Senha?</div>
+            </form>
+
+            <form id="registerForm" class="space-y-4 hidden">
+                <input type="email" id="registerEmail" placeholder="Email" class="w-full p-3 rounded-lg border-2 border-gray-600 bg-gray-700 text-white placeholder-gray-400">
+                <input type="password" id="registerPassword" placeholder="Senha (mín. 6 caracteres)" class="w-full p-3 rounded-lg border-2 border-gray-600 bg-gray-700 text-white placeholder-gray-400">
+                <button type="submit" class="w-full px-6 py-3 text-lg font-bold text-primary-bg bg-accent hover:bg-win rounded-lg transition duration-200">
+                    Criar Conta
+                </button>
+                <p id="registerError" class="text-lose text-center text-sm font-medium hidden"></p>
+            </form>
+
+            <form id="magicLinkForm" class="space-y-4 hidden">
+                <p class="text-gray-400 text-sm">Insira seu email. Enviaremos um link de login seguro, sem necessidade de senha.</p>
+                <input type="email" id="magicLinkEmail" placeholder="Seu Email" class="w-full p-3 rounded-lg border-2 border-gray-600 bg-gray-700 text-white placeholder-gray-400">
+                <button type="submit" class="w-full px-6 py-3 text-lg font-bold text-primary-bg bg-green-500 hover:bg-green-600 rounded-lg transition duration-200">
+                    Enviar Link de Login
+                </button>
+                <p id="magicLinkMessage" class="text-center text-sm font-medium hidden"></p>
+            </form>
+
+            <form id="resetForm" class="space-y-4 hidden">
+                <p class="text-gray-400 text-sm">Insira seu email. Enviaremos um link de recuperação.</p>
+                <input type="email" id="resetEmail" placeholder="Email de Recuperação" class="w-full p-3 rounded-lg border-2 border-gray-600 bg-gray-700 text-white placeholder-gray-400">
+                <button type="submit" class="w-full px-6 py-3 text-lg font-bold text-primary-bg bg-blue-500 hover:bg-blue-600 rounded-lg transition duration-200">
+                    Enviar Link
+                </button>
+                <p id="resetMessage" class="text-center text-sm font-medium hidden"></p>
+                <div id="backToLoginLink" class="text-center text-sm text-gray-400 hover:text-accent cursor-pointer pt-2">Voltar ao Login</div>
+            </form>
+        </div>
+    </div>
+
+
+    <div id="game-container" class="w-full max-w-sm bg-primary-bg p-6 rounded-xl shadow-2xl border border-gray-700 order-2 lg:order-2">
+        
+        <div class="text-center mb-4">
+            <span class="text-6xl" style="filter: drop-shadow(0 4px 6px #00000080); color: #fbbf24;">❓</span>
+        </div>
+        
+        <h1 class="text-3xl font-bold text-white mb-2 text-center">Adivinhe o Número!</h1>
+        <p class="text-gray-400 mb-6 text-center">Tente adivinhar o número secreto entre 1 e 100.</p>
+
+        <div id="gameLockedMessage" class="p-4 rounded-lg bg-red-800 text-white text-center font-bold mb-6">
+            FAÇA LOGIN PARA JOGAR E SALVAR SEU RECORD.
+        </div>
+        
+        <div id="gameContent" class="hidden">
+            <div id="input-area" class="flex flex-col sm:flex-row gap-3 mb-6">
+                <input
+                    type="number"
+                    id="guessInput"
+                    placeholder="Seu palpite (1-100)"
+                    min="1"
+                    max="100"
+                    class="flex-grow p-3 text-lg rounded-lg border-2 border-gray-600 bg-gray-700 text-white placeholder-gray-400 transition duration-200"
+                >
+                <button
+                    id="checkButton"
+                    class="w-full sm:w-auto px-6 py-3 text-lg font-bold text-primary-bg bg-accent hover:bg-win rounded-lg shadow-md transition duration-200 transform hover:scale-105 disabled:opacity-50"
+                >
+                    Verificar
+                </button>
+            </div>
+
+            <div class="space-y-4">
+                <div id="message" class="p-4 rounded-lg text-center font-semibold text-lg bg-gray-700 text-gray-300 min-h-[4rem] flex items-center justify-center transition duration-300">
+                    Digite um número e clique em Verificar!
+                </div>
+                
+                <div class="flex justify-between items-center text-gray-400 font-medium pt-2">
+                    <span class="text-lg">Tentativas Restantes:</span>
+                    <span id="attempts" class="text-3xl font-bold text-accent">10</span>
+                </div>
+                
+                <div class="flex justify-between items-center text-gray-400 font-medium border-t border-gray-700 pt-4">
+                    <span class="text-lg">Tempo Gasto:</span>
+                    <span id="timerDisplay" class="text-3xl font-bold text-accent">0s</span>
+                </div>
+            </div>
+
+            <button
+                id="resetButton"
+                class="hidden w-full mt-6 px-6 py-3 text-lg font-bold text-white bg-blue-500 hover:bg-blue-600 rounded-lg shadow-md transition duration-200 transform hover:scale-105"
+            >
+                Jogar Novamente
+            </button>
+
+            <p id="error-message" class="text-lose text-center mt-3 hidden font-medium">
+                Por favor, insira um número válido entre 1 e 100.
+            </p>
+        </div>
+    </div>
+
+
+    <div class="w-full max-w-xs sm:max-w-sm bg-primary-bg p-6 rounded-xl shadow-2xl border border-gray-700 order-3 lg:order-3">
+        <h2 class="text-2xl font-bold text-white mb-1 text-center">🏆 Placar Global</h2>
+        <p id="currentUserId" class="text-xs text-gray-500 text-center mb-4 truncate">
+            Status: Conectando ao Firebase...
+        </p>
+        
+        <div id="leaderboardContainer" class="space-y-2">
+            <div id="loadingMessage" class="text-gray-400 text-center">Carregando placar...</div>
+        </div>
+        <p id="leaderboardError" class="text-lose text-center mt-1 hidden"></p>
+    </div>
+
+
+    <div id="scoreModal" class="hidden modal-overlay fixed inset-0 flex items-center justify-center z-50">
+        <div class="bg-primary-bg p-8 rounded-xl shadow-2xl w-full max-w-sm m-4 transform transition-all duration-300 scale-100">
+            <h2 class="text-3xl font-bold text-win mb-4 text-center">Novo Recorde! 🎉</h2>
+            <p id="modalMessage" class="text-gray-300 mb-6 text-center">Você conseguiu em X tentativas. Insira seu nickname para salvar seu feito no Placar Global!</p>
+            
+            <div id="modalStatusMessage" class="text-center text-sm font-medium min-h-[1.5rem] mb-2 text-gray-400"></div>
+
+            <input
+                type="text"
+                id="nicknameInput"
+                placeholder="Seu Nickname"
+                maxlength="12"
+                class="w-full p-3 text-lg rounded-lg border-2 border-accent bg-gray-700 text-white placeholder-gray-400 mb-4 transition duration-200"
+            >
+            <button
+                id="saveScoreButton"
+                class="w-full px-6 py-3 text-lg font-bold text-primary-bg bg-accent hover:bg-win rounded-lg shadow-md transition duration-200 transform hover:scale-105 disabled:opacity-50"
+            >
+                Salvar Recorde!
+            </button>
+            <button
+                id="closeModalButton"
+                class="w-full mt-3 px-6 py-3 text-sm font-bold text-gray-400 hover:text-white transition duration-200"
+            >
+                Jogar Novamente (Não salvar)
+            </button>
+        </div>
+    </div>
+
+
+    <script type="module">
+        // =========================================================================
+        // 1. IMPORTAÇÕES E CONFIGURAÇÃO FIREBASE
+        // =========================================================================
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, addDoc, onSnapshot, collection, query, limit, orderBy, serverTimestamp, getDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // CONFIGURAÇÃO DO SEU PROJETO FIREBASE (CHAVES INSERIDAS)
+        const firebaseConfig = {
+            apiKey: "AIzaSyB2Nl_AhgseHMRfKEXVUYnMU1m_MNZSYn4",
+            authDomain: "acerte-o-numero.firebaseapp.com",
+            projectId: "acerte-o-numero",
+            storageBucket: "acerte-o-numero.firebasestorage.app",
+            messagingSenderId: "184407101485",
+            appId: "1:184407101485:web:4856445ddcf948d0e568a4",
+            measurementId: "G-C7M1LXH8WP"
+        };
+        
+        // =========================================================================
+        // 2. VARIÁVEIS GLOBAIS E INICIALIZAÇÃO
+        // =========================================================================
+
+        let db;
+        let auth;
+        let userId = null; // ID do usuário logado (UID do Firebase)
+        let currentUser = null; // Objeto user do Firebase
+        let isAuthReady = false; 
+        let isLeaderboardActive = false; 
+        let currentAuthMode = 'login'; 
+
+        // Variáveis globais do jogo
+        let secretNumber;
+        let attemptsMade;
+        const maxAttempts = 10;
+        let isGameActive = false;
+        
+        // Variáveis para o Timer (Performance)
+        let gameTimer;
+        let timeElapsed;
+        let gameStartTime;
+
+        // Referências DOM - JOGO
+        const guessInput = document.getElementById('guessInput');
+        const checkButton = document.getElementById('checkButton');
+        const resetButton = document.getElementById('resetButton');
+        const messageDisplay = document.getElementById('message');
+        const attemptsDisplay = document.getElementById('attempts');
+        const errorDisplay = document.getElementById('error-message');
+        const timerDisplay = document.getElementById('timerDisplay');
+        const gameContent = document.getElementById('gameContent');
+        const gameLockedMessage = document.getElementById('gameLockedMessage');
+
+        // Referências DOM - AUTENTICAÇÃO
+        const loggedInStatus = document.getElementById('loggedInStatus');
+        const loggedOutStatus = document.getElementById('loggedOutStatus');
+        const userEmailDisplay = document.getElementById('userEmailDisplay');
+        const signOutButton = document.getElementById('signOutButton');
+        const loginForm = document.getElementById('loginForm');
+        const registerForm = document.getElementById('registerForm');
+        const magicLinkForm = document.getElementById('magicLinkForm');
+        const resetForm = document.getElementById('resetForm');
+        const loginTab = document.getElementById('loginTab');
+        const registerTab = document.getElementById('registerTab');
+        const magicLinkTab = document.getElementById('magicLinkTab');
+        const loginError = document.getElementById('loginError');
+        const registerError = document.getElementById('registerError');
+        const forgotPasswordLink = document.getElementById('forgotPasswordLink');
+        const backToLoginLink = document.getElementById('backToLoginLink');
+        const resetMessage = document.getElementById('resetMessage');
+        const magicLinkMessage = document.getElementById('magicLinkMessage');
+
+        // Referências DOM - PLACAR e MODAL
+        const leaderboardContainer = document.getElementById('leaderboardContainer');
+        const scoreModal = document.getElementById('scoreModal');
+        const modalMessage = document.getElementById('modalMessage');
+        const nicknameInput = document.getElementById('nicknameInput');
+        const saveScoreButton = document.getElementById('saveScoreButton');
+        const closeModalButton = document.getElementById('closeModalButton');
+        const loadingMessage = document.getElementById('loadingMessage');
+        const currentUserIdDisplay = document.getElementById('currentUserId');
+        const modalStatusMessage = document.getElementById('modalStatusMessage');
+
+
+        function initFirebase() {
+            // Inicializa o Firebase
+            try {
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+
+                // Observa o estado de autenticação para atualizar a UI
+                onAuthStateChanged(auth, handleAuthStateChange);
+
+                // Checa se é um retorno de link mágico
+                handleMagicLinkSignIn();
+
+            } catch (error) {
+                console.error("Erro ao inicializar Firebase:", error);
+                currentUserIdDisplay.textContent = "Erro de Configuração. Verifique as chaves do Firebase.";
+            }
+        }
+
+        // =========================================================================
+        // 3. LÓGICA DE AUTENTICAÇÃO
+        // =========================================================================
+
+        function handleAuthStateChange(user) {
+            isAuthReady = true;
+            if (user) {
+                // Logado
+                userId = user.uid;
+                currentUser = user;
+                userEmailDisplay.textContent = user.email;
+                loggedInStatus.classList.remove('hidden');
+                loggedOutStatus.classList.add('hidden');
+                gameContent.classList.remove('hidden');
+                gameLockedMessage.classList.add('hidden');
+                currentUserIdDisplay.textContent = `Logado: ${user.email}`;
+
+                // Ativa o Placar se ainda não estiver ativo
+                if (!isLeaderboardActive) {
+                    subscribeToLeaderboard();
+                }
+                // Garante que o jogo comece se não estiver ativo
+                if (!isGameActive) {
+                    initGame(); 
+                }
+            } else {
+                // Deslogado
+                userId = null;
+                currentUser = null;
+                loggedInStatus.classList.add('hidden');
+                loggedOutStatus.classList.remove('hidden');
+                gameContent.classList.add('hidden');
+                gameLockedMessage.classList.remove('hidden');
+                currentUserIdDisplay.textContent = "Status: Deslogado. Login para salvar o recorde.";
+            }
+        }
+
+        function switchAuthMode(mode) {
+            currentAuthMode = mode;
+            loginForm.classList.add('hidden');
+            registerForm.classList.add('hidden');
+            magicLinkForm.classList.add('hidden');
+            resetForm.classList.add('hidden');
+            loginTab.classList.remove('active');
+            registerTab.classList.remove('active');
+            magicLinkTab.classList.remove('active');
+            forgotPasswordLink.classList.remove('hidden');
+            resetMessage.classList.add('hidden');
+            loginError.classList.add('hidden');
+            registerError.classList.add('hidden');
+            magicLinkMessage.classList.add('hidden');
+
+            if (mode === 'login') {
+                loginForm.classList.remove('hidden');
+                loginTab.classList.add('active');
+            } else if (mode === 'register') {
+                registerForm.classList.remove('hidden');
+                registerTab.classList.add('active');
+            } else if (mode === 'magiclink') {
+                magicLinkForm.classList.remove
