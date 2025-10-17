@@ -245,16 +245,16 @@
         import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, addDoc, onSnapshot, collection, query, limit, orderBy, serverTimestamp, getDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // CONFIGURAÇÃO DO SEU PROJETO FIREBASE (CHAVES INSERIDAS)
-        const firebaseConfig = {
-            apiKey: "AIzaSyB2Nl_AhgseHMRfKEXVUYnMU1m_MNZSYn4",
-            authDomain: "acerte-o-numero.firebaseapp.com",
-            projectId: "acerte-o-numero",
-            storageBucket: "acerte-o-numero.firebasestorage.app",
-            messagingSenderId: "184407101485",
-            appId: "1:184407101485:web:4856445ddcf948d0e568a4",
-            measurementId: "G-C7M1LXH8WP"
-        };
+        // CONFIGURAÇÃO ATUALIZADA DO SEU NOVO PROJETO FIREBASE
+const firebaseConfig = {
+    apiKey: "AIzaSyD2QkLUKPKRPhJNSjPCmG7qYj8C9bETaIU",
+    authDomain: "acerteonumero-27ac7.firebaseapp.com",
+    projectId: "acerteonumero-27ac7",
+    storageBucket: "acerteonumero-27ac7.firebasestorage.app",
+    messagingSenderId: "176926436909",
+    appId: "1:176926436909:web:ad315242ed8f7b35a492a4",
+    measurementId: "G-336XH8KH5S"
+};
         
         // =========================================================================
         // 2. VARIÁVEIS GLOBAIS E INICIALIZAÇÃO
@@ -399,4 +399,5 @@
                 registerForm.classList.remove('hidden');
                 registerTab.classList.add('active');
             } else if (mode === 'magiclink') {
+
                 magicLinkForm.classList.remove
