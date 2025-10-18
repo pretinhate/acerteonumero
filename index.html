@@ -548,7 +548,7 @@
 
         async function saveScore(nickname, attempts, time) {
             if (!userId || !db) {
-                modalStatusMessage.textContent = "Erro: Usuário não logado ou Firebase desconectado.";
+                modalStatusMessage.textContent = "Erro: Usuário não logado. Por favor, faça login.";
                 modalStatusMessage.classList.add('text-lose');
                 return;
             }
@@ -560,6 +560,14 @@
                 return;
             }
 
+            // --- MELHORIA: Feedback visual enquanto salva ---
+            saveScoreButton.disabled = true;
+            nicknameInput.disabled = true;
+            modalStatusMessage.textContent = "Salvando recorde...";
+            modalStatusMessage.classList.remove('text-lose', 'text-win');
+            modalStatusMessage.classList.add('text-accent');
+            // ------------------------------------------------
+
             try {
                 await addDoc(collection(db, "leaderboard"), {
                     userId: userId,
@@ -570,15 +578,35 @@
                 });
                 
                 modalStatusMessage.textContent = "Recorde salvo com sucesso!";
-                modalStatusMessage.classList.remove('text-lose');
+                modalStatusMessage.classList.remove('text-accent');
                 modalStatusMessage.classList.add('text-win');
-                saveScoreButton.disabled = true;
-                nicknameInput.disabled = true;
+                
+                // CORREÇÃO ANTERIOR: Fecha o modal após um pequeno atraso para o usuário ver a mensagem de sucesso
+                setTimeout(() => {
+                    hideScoreModal();
+                }, 1500); 
+
             } catch (error) {
                 console.error("Erro ao salvar recorde:", error);
-                modalStatusMessage.textContent = "Erro ao salvar recorde no Firebase.";
+                
+                // --- MELHORIA: Mensagem de erro mais clara ---
+                let errorMessage = "Erro desconhecido. Tente novamente.";
+                if (error.code === 'permission-denied') {
+                    errorMessage = "PERMISSÃO NEGADA. Você precisa estar logado para salvar seu recorde. Por favor, verifique seu status de login e as Regras do Firestore.";
+                } else if (error.message.includes('permission')) {
+                    errorMessage = `Erro de Permissão: ${error.message}. (Verifique as Regras!)`;
+                } else {
+                    errorMessage = `Erro: ${error.message}`;
+                }
+                
+                modalStatusMessage.textContent = errorMessage;
+                modalStatusMessage.classList.remove('text-accent', 'text-win');
                 modalStatusMessage.classList.add('text-lose');
+                
+                // Reabilita o botão para permitir nova tentativa (e sair)
                 saveScoreButton.disabled = false;
+                nicknameInput.disabled = false;
+                // ----------------------------------------------
             }
         }
 
@@ -632,7 +660,7 @@
                 renderLeaderboard(scores);
             }, (error) => {
                 console.error("Erro ao carregar placar:", error);
-                document.getElementById('leaderboardError').textContent = "Erro ao conectar o Placar.";
+                document.getElementById('leaderboardError').textContent = "Erro ao conectar o Placar. (Verifique as Regras de Segurança do Firestore!)";
                 document.getElementById('leaderboardError').classList.remove('hidden');
             });
         }
@@ -726,7 +754,7 @@
             
             // Limpa o estado do modal
             modalStatusMessage.textContent = "";
-            modalStatusMessage.classList.remove('text-lose', 'text-win');
+            modalStatusMessage.classList.remove('text-lose', 'text-win', 'text-accent');
             saveScoreButton.disabled = false;
             nicknameInput.disabled = false;
             
