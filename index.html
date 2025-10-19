@@ -3,797 +3,448 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Adivinhe o Número</title>
+    <title>Teste de Tempo de Reação</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- ATUALIZADO: Usando a versão 12.4.0 do Firebase SDK (Modular Imports) -->
-    <script type="module" src="https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js"></script>
-    <script type="module" src="https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js"></script>
-    <script type="module" src="https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js"></script>
-
     <style>
-        /* Define a fonte Inter e estilização de foco */
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
-        
-        /* Cor de foco alterada para o novo 'accent' dourado */
-        input:focus, button:focus {
-            outline: none;
-            box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.5); /* Cor Gold/Amber mais brilhante */
-        }
-        
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
         body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
             min-height: 100vh;
             margin: 0;
-            background-color: #0f172a; /* Fundo AZUL ESCURO PROFUNDO (Slate 900) */
-            font-family: 'Inter', sans-serif;
+            padding: 20px;
         }
-        
-        .modal-overlay {
-            background-color: rgba(0, 0, 0, 0.7);
+        .container {
+            max-width: 900px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
         }
-
-        /* Estilo para que o cursor de texto nos inputs seja branco */
-        input {
-            caret-color: white;
+        .game-area {
+            background-color: #fff;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 400px;
         }
-        
-        /* Estilo para abas de autenticação */
-        .auth-tab {
+        .reaction-box {
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            font-weight: 800;
+            font-size: 1.5rem;
+            color: #fff;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: background-color 0.1s ease-in-out;
+            user-select: none;
+            padding: 20px;
+            border-radius: 12px;
         }
-        .auth-tab.active {
-            border-bottom: 3px solid #fbbf24;
-            color: white;
+        .reaction-box.ready { background-color: #3b82f6; } /* Blue - Get Ready */
+        .reaction-box.wait { background-color: #f59e0b; cursor: not-allowed; } /* Yellow - Wait */
+        .reaction-box.go { background-color: #10b981; } /* Green - Click Now */
+        .reaction-box.too-soon { background-color: #ef4444; } /* Red - Too Soon */
+        .reaction-box.result { background-color: #6366f1; } /* Purple - Result */
+        
+        @media (min-width: 640px) {
+            .reaction-box { font-size: 2.5rem; }
+            .container { flex-direction: row; }
+            .game-area { flex: 2; }
+            .leaderboard-container { flex: 1; }
         }
     </style>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                    },
-                    colors: {
-                        'primary-bg': '#1e293b',  /* Base do card (Slate 800) */
-                        'accent': '#fbbf24',      /* Gold/Amber CLARO para elementos ativos */
-                        'win': '#f59e0b',         /* Darker Amber para sucesso */
-                        'lose': '#ef4444',        /* Red para falha/erro */
-                    }
-                }
-            }
-        }
-    </script>
 </head>
-<body class="flex flex-col lg:flex-row items-start justify-center p-4 gap-8">
+<body>
 
-    <div id="auth-panel" class="w-full max-w-xs sm:max-w-sm bg-primary-bg p-6 rounded-xl shadow-2xl border border-gray-700 order-1 lg:order-1">
-        <h2 class="text-2xl font-bold text-white mb-4 text-center">🔐 Acesso ao Placar</h2>
+    <script src="https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js"></script>
+    
+    <div class="container">
         
-        <div id="authStatusContainer" class="p-4 rounded-lg bg-gray-700 mb-4 text-center">
-            <div id="loggedInStatus" class="hidden">
-                <p class="text-gray-300 text-sm mb-2">Logado como:</p>
-                <p id="userEmailDisplay" class="text-accent font-bold truncate text-lg"></p>
-                <button
-                    id="signOutButton"
-                    class="mt-3 w-full py-2 text-sm font-bold text-primary-bg bg-lose hover:bg-red-600 rounded-lg transition duration-200"
-                >
-                    Sair (Sign Out)
-                </button>
+        <!-- Área do Jogo -->
+        <div class="game-area">
+            <div id="reaction-box" class="reaction-box ready" onclick="handleReactionClick()">
+                Clique para Começar
             </div>
+        </div>
+
+        <!-- Placar e Status -->
+        <div class="leaderboard-container bg-white p-6 rounded-xl shadow-lg flex flex-col gap-4">
+            <h2 class="text-2xl font-bold text-gray-800 border-b pb-2">🏆 Placar Global</h2>
             
-            <div id="loggedOutStatus" class="text-gray-400">
-                <p id="authMessage" class="font-medium">Faça login ou registre-se para jogar e salvar seu recorde!</p>
-            </div>
-        </div>
-
-        <div id="authForms" class="space-y-4">
-            <div class="flex border-b border-gray-700 mb-4 text-sm font-medium">
-                <div id="loginTab" class="auth-tab active flex-1 py-2 text-center text-gray-400">Login</div>
-                <div id="registerTab" class="auth-tab flex-1 py-2 text-center text-gray-400">Registrar</div>
-                <div id="magicLinkTab" class="auth-tab flex-1 py-2 text-center text-gray-400">Link Mágico</div>
+            <!-- Status de Autenticação -->
+            <div id="auth-status" class="text-sm font-semibold p-2 rounded-lg">
+                <span class="text-gray-500">Iniciando Firebase...</span>
             </div>
 
-            <form id="loginForm" class="space-y-4">
-                <input type="email" id="loginEmail" placeholder="Email" class="w-full p-3 rounded-lg border-2 border-gray-600 bg-gray-700 text-white placeholder-gray-400">
-                <input type="password" id="loginPassword" placeholder="Senha" class="w-full p-3 rounded-lg border-2 border-gray-600 bg-gray-700 text-white placeholder-gray-400">
-                <button type="submit" class="w-full px-6 py-3 text-lg font-bold text-primary-bg bg-accent hover:bg-win rounded-lg transition duration-200">
-                    Entrar
-                </button>
-                <p id="loginError" class="text-lose text-center text-sm font-medium hidden"></p>
-                <div id="forgotPasswordLink" class="text-center text-sm text-gray-400 hover:text-accent cursor-pointer pt-2">Esqueceu a Senha?</div>
-            </form>
-
-            <form id="registerForm" class="space-y-4 hidden">
-                <input type="email" id="registerEmail" placeholder="Email" class="w-full p-3 rounded-lg border-2 border-gray-600 bg-gray-700 text-white placeholder-gray-400">
-                <input type="password" id="registerPassword" placeholder="Senha (mín. 6 caracteres)" class="w-full p-3 rounded-lg border-2 border-gray-600 bg-gray-700 text-white placeholder-gray-400">
-                <button type="submit" class="w-full px-6 py-3 text-lg font-bold text-primary-bg bg-accent hover:bg-win rounded-lg transition duration-200">
-                    Criar Conta
-                </button>
-                <p id="registerError" class="text-lose text-center text-sm font-medium hidden"></p>
-            </form>
-
-            <form id="magicLinkForm" class="space-y-4 hidden">
-                <p class="text-gray-400 text-sm">Insira seu email. Enviaremos um link de login seguro, sem necessidade de senha.</p>
-                <input type="email" id="magicLinkEmail" placeholder="Seu Email" class="w-full p-3 rounded-lg border-2 border-gray-600 bg-gray-700 text-white placeholder-gray-400">
-                <button type="submit" class="w-full px-6 py-3 text-lg font-bold text-primary-bg bg-green-500 hover:bg-green-600 rounded-lg transition duration-200">
-                    Enviar Link de Login
-                </button>
-                <p id="magicLinkMessage" class="text-center text-sm font-medium hidden"></p>
-            </form>
-
-            <form id="resetForm" class="space-y-4 hidden">
-                <p class="text-gray-400 text-sm">Insira seu email. Enviaremos um link de recuperação.</p>
-                <input type="email" id="resetEmail" placeholder="Email de Recuperação" class="w-full p-3 rounded-lg border-2 border-gray-600 bg-gray-700 text-white placeholder-gray-400">
-                <button type="submit" class="w-full px-6 py-3 text-lg font-bold text-primary-bg bg-blue-500 hover:bg-blue-600 rounded-lg transition duration-200">
-                    Enviar Link
-                </button>
-                <p id="resetMessage" class="text-center text-sm font-medium hidden"></p>
-                <div id="backToLoginLink" class="text-center text-sm text-gray-400 hover:text-accent cursor-pointer pt-2">Voltar ao Login</div>
-            </form>
+            <!-- Placar -->
+            <div id="leaderboard-list" class="flex flex-col gap-3">
+                <div class="text-gray-500 italic">Carregando placar...</div>
+            </div>
         </div>
     </div>
 
-
-    <div id="game-container" class="w-full max-w-sm bg-primary-bg p-6 rounded-xl shadow-2xl border border-gray-700 order-2 lg:order-2">
-        
-        <div class="text-center mb-4">
-            <span class="text-6xl" style="filter: drop-shadow(0 4px 6px #00000080); color: #fbbf24;">❓</span>
-        </div>
-        
-        <h1 class="text-3xl font-bold text-white mb-2 text-center">Adivinhe o Número!</h1>
-        <p class="text-gray-400 mb-6 text-center">Tente adivinhar o número secreto entre 1 e 100.</p>
-
-        <div id="gameLockedMessage" class="p-4 rounded-lg bg-red-800 text-white text-center font-bold mb-6">
-            FAÇA LOGIN PARA JOGAR E SALVAR SEU RECORD.
-        </div>
-        
-        <div id="gameContent" class="hidden">
-            <div id="input-area" class="flex flex-col sm:flex-row gap-3 mb-6">
-                <input
-                    type="number"
-                    id="guessInput"
-                    placeholder="Seu palpite (1-100)"
-                    min="1"
-                    max="100"
-                    class="flex-grow p-3 text-lg rounded-lg border-2 border-gray-600 bg-gray-700 text-white placeholder-gray-400 transition duration-200"
-                >
-                <button
-                    id="checkButton"
-                    class="w-full sm:w-auto px-6 py-3 text-lg font-bold text-primary-bg bg-accent hover:bg-win rounded-lg shadow-md transition duration-200 transform hover:scale-105 disabled:opacity-50"
-                >
-                    Verificar
-                </button>
-            </div>
-
-            <div class="space-y-4">
-                <div id="message" class="p-4 rounded-lg text-center font-semibold text-lg bg-gray-700 text-gray-300 min-h-[4rem] flex items-center justify-center transition duration-300">
-                    Digite um número e clique em Verificar!
-                </div>
-                
-                <div class="flex justify-between items-center text-gray-400 font-medium pt-2">
-                    <span class="text-lg">Tentativas Restantes:</span>
-                    <span id="attempts" class="text-3xl font-bold text-accent">10</span>
-                </div>
-                
-                <div class="flex justify-between items-center text-gray-400 font-medium border-t border-gray-700 pt-4">
-                    <span class="text-lg">Tempo Gasto:</span>
-                    <span id="timerDisplay" class="text-3xl font-bold text-accent">0s</span>
-                </div>
-            </div>
-
-            <button
-                id="resetButton"
-                class="hidden w-full mt-6 px-6 py-3 text-lg font-bold text-white bg-blue-500 hover:bg-blue-600 rounded-lg shadow-md transition duration-200 transform hover:scale-105"
-            >
-                Jogar Novamente
-            </button>
-
-            <p id="error-message" class="text-lose text-center mt-3 hidden font-medium">
-                Por favor, insira um número válido entre 1 e 100.
-            </p>
-        </div>
-    </div>
-
-
-    <div class="w-full max-w-xs sm:max-w-sm bg-primary-bg p-6 rounded-xl shadow-2xl border border-gray-700 order-3 lg:order-3">
-        <h2 class="text-2xl font-bold text-white mb-1 text-center">🏆 Placar Global</h2>
-        <p id="currentUserId" class="text-xs text-gray-500 text-center mb-4 truncate">
-            Status: Conectando ao Firebase...
-        </p>
-        
-        <div id="leaderboardContainer" class="space-y-2">
-            <div id="loadingMessage" class="text-gray-400 text-center">Carregando placar...</div>
-        </div>
-        <p id="leaderboardError" class="text-lose text-center mt-1 hidden"></p>
-    </div>
-
-
-    <div id="scoreModal" class="hidden modal-overlay fixed inset-0 flex items-center justify-center z-50">
-        <div class="bg-primary-bg p-8 rounded-xl shadow-2xl w-full max-w-sm m-4 transform transition-all duration-300 scale-100">
-            <h2 class="text-3xl font-bold text-win mb-4 text-center">Novo Recorde! 🎉</h2>
-            <p id="modalMessage" class="text-gray-300 mb-6 text-center">Você conseguiu em X tentativas. Insira seu nickname para salvar seu feito no Placar Global!</p>
+    <!-- Modal para Nickname (Escondido por padrão) -->
+    <div id="nickname-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-sm transform transition-all">
+            <h3 class="text-xl font-bold mb-4 text-indigo-600">Primeiro, seu Nickname</h3>
+            <p class="text-gray-600 mb-6">Você precisa de um apelido para aparecer no placar.</p>
             
-            <div id="modalStatusMessage" class="text-center text-sm font-medium min-h-[1.5rem] mb-2 text-gray-400"></div>
-
-            <input
-                type="text"
-                id="nicknameInput"
-                placeholder="Seu Nickname"
-                maxlength="12"
-                class="w-full p-3 text-lg rounded-lg border-2 border-accent bg-gray-700 text-white placeholder-gray-400 mb-4 transition duration-200"
-            >
-            <button
-                id="saveScoreButton"
-                class="w-full px-6 py-3 text-lg font-bold text-primary-bg bg-accent hover:bg-win rounded-lg shadow-md transition duration-200 transform hover:scale-105 disabled:opacity-50"
-            >
-                Salvar Recorde!
-            </button>
-            <button
-                id="closeModalButton"
-                class="w-full mt-3 px-6 py-3 text-sm font-bold text-gray-400 hover:text-white transition duration-200"
-            >
-                Jogar Novamente (Não salvar)
-            </button>
+            <form id="nickname-form" onsubmit="event.preventDefault(); saveNickname();">
+                <input type="text" id="nickname-input" placeholder="Seu Nickname (ex: RatoVeloz)" maxlength="20"
+                       class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-4" required>
+                
+                <button type="submit" id="save-nickname-btn"
+                        class="w-full bg-indigo-600 text-white p-3 rounded-lg font-semibold hover:bg-indigo-700 transition duration-200">
+                    Salvar Nickname
+                </button>
+            </form>
+            <p id="nickname-error" class="text-red-500 text-sm mt-3 hidden"></p>
         </div>
     </div>
 
+    <!-- Modal de Recorde (Escondido por padrão) -->
+    <div id="score-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-sm transform transition-all text-center">
+            <h3 id="score-modal-title" class="text-2xl font-extrabold mb-2 text-green-600">Novo Recorde!</h3>
+            <p id="score-modal-message" class="text-gray-700 mb-6">Parabéns! Seu tempo de **XXms** foi salvo.</p>
+            
+            <button onclick="closeScoreModal()"
+                    class="bg-indigo-500 text-white p-3 rounded-lg font-semibold hover:bg-indigo-600 transition duration-200">
+                Fechar
+            </button>
+        </div>
+    </div>
 
     <script type="module">
-        // =========================================================================
-        // 1. IMPORTAÇÕES E CONFIGURAÇÃO FIREBASE
-        // =========================================================================
-        // **IMPORTANTE:** As URLs do SDK foram atualizadas para a versão 12.4.0
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
-        import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
-        import { getFirestore, addDoc, onSnapshot, collection, query, limit, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
-
-        // CONFIGURAÇÃO ATUALIZADA DO SEU NOVO PROJETO FIREBASE (acerteonumero-v2)
-        const firebaseConfig = {
-            apiKey: "AIzaSyADfUsXQwICBO3u6JLVIZveyNQmVfIi-lM",
-            authDomain: "acerteonumero-v2.firebaseapp.com",
-            projectId: "acerteonumero-v2",
-            storageBucket: "acerteonumero-v2.firebasestorage.app",
-            messagingSenderId: "180559249457",
-            appId: "1:180559249457:web:3757e65c19a7094d75d510",
-            measurementId: "G-E76PVZRSTR"
-        };
+        // Variáveis Globais do Canvas (NÃO DELETAR!)
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
         
-        // =========================================================================
-        // 2. VARIÁVEIS GLOBAIS E INICIALIZAÇÃO
-        // =========================================================================
-
+        // Importações e Inicialização
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query, addDoc, serverTimestamp, orderBy, limit } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore-lite.js";
+        
+        // Configuração Firebase
+        let app;
         let db;
         let auth;
-        let userId = null; // ID do usuário logado (UID do Firebase)
-        let currentUser = null; // Objeto user do Firebase
-        let isAuthReady = false; 
-        let isLeaderboardActive = false; 
-        let currentAuthMode = 'login'; 
+        let userId = null;
+        let userNickname = null;
+        let isAuthReady = false;
 
-        // Variáveis globais do jogo
-        let secretNumber;
-        let attemptsMade;
-        const maxAttempts = 10;
-        let isGameActive = false;
+        // Caminhos das Coleções (CORRIGIDOS PARA SINCRONIZAR COM AS REGRAS DE SEGURANÇA)
+        const LEADERBOARD_COLLECTION_PATH = "leaderboard"; 
+        const USER_PROFILE_COLLECTION_PATH = "users";
         
-        // Variáveis para o Timer (Performance)
-        let gameTimer;
-        let timeElapsed;
-        let gameStartTime;
+        setLogLevel('debug'); // Ativar logs de debug para o Firestore
 
-        // Referências DOM - JOGO
-        const guessInput = document.getElementById('guessInput');
-        const checkButton = document.getElementById('checkButton');
-        const resetButton = document.getElementById('resetButton');
-        const messageDisplay = document.getElementById('message');
-        const attemptsDisplay = document.getElementById('attempts');
-        const errorDisplay = document.getElementById('error-message');
-        const timerDisplay = document.getElementById('timerDisplay');
-        const gameContent = document.getElementById('gameContent');
-        const gameLockedMessage = document.getElementById('gameLockedMessage');
+        // Variáveis do Jogo
+        const reactionBox = document.getElementById('reaction-box');
+        let startTime, endTime;
+        let isWaiting = false;
+        let isGo = false;
+        let timerId;
+        const MIN_WAIT = 1500; // 1.5 segundos
+        const MAX_WAIT = 4000; // 4 segundos
 
-        // Referências DOM - AUTENTICAÇÃO
-        const loggedInStatus = document.getElementById('loggedInStatus');
-        const loggedOutStatus = document.getElementById('loggedOutStatus');
-        const userEmailDisplay = document.getElementById('userEmailDisplay');
-        const signOutButton = document.getElementById('signOutButton');
-        const loginForm = document.getElementById('loginForm');
-        const registerForm = document.getElementById('registerForm');
-        const magicLinkForm = document.getElementById('magicLinkForm');
-        const resetForm = document.getElementById('resetForm');
-        const loginTab = document.getElementById('loginTab');
-        const registerTab = document.getElementById('registerTab');
-        const magicLinkTab = document.getElementById('magicLinkTab');
-        const loginError = document.getElementById('loginError');
-        const registerError = document.getElementById('registerError');
-        const forgotPasswordLink = document.getElementById('forgotPasswordLink');
-        const backToLoginLink = document.getElementById('backToLoginLink');
-        const resetMessage = document.getElementById('resetMessage');
-        const magicLinkMessage = document.getElementById('magicLinkMessage');
+        // =================================================================================
+        // FUNÇÕES DE UTILIDADE E UI
+        // =================================================================================
+        
+        function updateAuthStatus(status, colorClass) {
+            const authStatusElement = document.getElementById('auth-status');
+            authStatusElement.textContent = status;
+            authStatusElement.className = `text-sm font-semibold p-2 rounded-lg ${colorClass}`;
+        }
 
-        // Referências DOM - PLACAR e MODAL
-        const leaderboardContainer = document.getElementById('leaderboardContainer');
-        const scoreModal = document.getElementById('scoreModal');
-        const modalMessage = document.getElementById('modalMessage');
-        const nicknameInput = document.getElementById('nicknameInput');
-        const saveScoreButton = document.getElementById('saveScoreButton');
-        const closeModalButton = document.getElementById('closeModalButton');
-        const loadingMessage = document.getElementById('loadingMessage');
-        const currentUserIdDisplay = document.getElementById('currentUserId');
-        const modalStatusMessage = document.getElementById('modalStatusMessage');
+        function showModal(id) {
+            document.getElementById(id).classList.remove('hidden');
+        }
 
+        function hideModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+        
+        // =================================================================================
+        // FUNÇÕES DE AUTENTICAÇÃO E FIRESTORE (INICIALIZAÇÃO)
+        // =================================================================================
 
-        function initFirebase() {
-            // Inicializa o Firebase
+        async function initFirebase() {
+            if (!firebaseConfig.apiKey) {
+                updateAuthStatus("Erro: Configuração do Firebase ausente.", "bg-red-100 text-red-600");
+                return;
+            }
+
             try {
-                const app = initializeApp(firebaseConfig);
+                app = initializeApp(firebaseConfig);
                 auth = getAuth(app);
                 db = getFirestore(app);
 
-                // Observa o estado de autenticação para atualizar a UI
-                onAuthStateChanged(auth, handleAuthStateChange);
-
-                // Checa se é um retorno de link mágico
-                handleMagicLinkSignIn();
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        updateAuthStatus(`Logado como: ${user.email || 'Usuário Anônimo'}`, "bg-green-100 text-green-600");
+                        await checkUserProfile();
+                        isAuthReady = true;
+                        if (userNickname) {
+                           setupLeaderboardListener();
+                        }
+                    } else {
+                        // Tentar login com Custom Token fornecido pelo Canvas (preferido)
+                        if (initialAuthToken) {
+                            await signInWithCustomToken(auth, initialAuthToken);
+                        } else {
+                            // Se não houver token, fazer login anonimamente
+                            await signInAnonymously(auth);
+                        }
+                        // O onAuthStateChanged será chamado novamente com o usuário logado
+                    }
+                });
 
             } catch (error) {
-                console.error("Erro ao inicializar Firebase:", error);
-                currentUserIdDisplay.textContent = "Erro de Configuração. Verifique as chaves do Firebase.";
+                console.error("Erro ao iniciar Firebase:", error);
+                updateAuthStatus(`Erro de Inicialização: ${error.message}`, "bg-red-100 text-red-600");
             }
         }
 
-        // =========================================================================
-        // 3. LÓGICA DE AUTENTICAÇÃO
-        // =========================================================================
-
-        function handleAuthStateChange(user) {
-            isAuthReady = true;
-            if (user) {
-                // Logado
-                userId = user.uid;
-                currentUser = user;
-                userEmailDisplay.textContent = user.email;
-                loggedInStatus.classList.remove('hidden');
-                loggedOutStatus.classList.add('hidden');
-                gameContent.classList.remove('hidden');
-                gameLockedMessage.classList.add('hidden');
-                currentUserIdDisplay.textContent = `Logado: ${user.email}`;
-
-                // Ativa o Placar se ainda não estiver ativo
-                if (!isLeaderboardActive) {
-                    subscribeToLeaderboard();
-                }
-                // Garante que o jogo comece se não estiver ativo
-                if (!isGameActive) {
-                    initGame(); 
-                }
-            } else {
-                // Deslogado
-                userId = null;
-                currentUser = null;
-                loggedInStatus.classList.add('hidden');
-                loggedOutStatus.classList.remove('hidden');
-                gameContent.classList.add('hidden');
-                gameLockedMessage.classList.remove('hidden');
-                currentUserIdDisplay.textContent = "Status: Deslogado. Login para salvar o recorde.";
-            }
-        }
-
-        function switchAuthMode(mode) {
-            currentAuthMode = mode;
-            loginForm.classList.add('hidden');
-            registerForm.classList.add('hidden');
-            magicLinkForm.classList.add('hidden');
-            resetForm.classList.add('hidden');
-            loginTab.classList.remove('active');
-            registerTab.classList.remove('active');
-            magicLinkTab.classList.remove('active');
-            forgotPasswordLink.classList.remove('hidden');
-            resetMessage.classList.add('hidden');
-            loginError.classList.add('hidden');
-            registerError.classList.add('hidden');
-            magicLinkMessage.classList.add('hidden');
-
-            if (mode === 'login') {
-                loginForm.classList.remove('hidden');
-                loginTab.classList.add('active');
-            } else if (mode === 'register') {
-                registerForm.classList.remove('hidden');
-                registerTab.classList.add('active');
-            } else if (mode === 'magiclink') {
-                magicLinkForm.classList.remove('hidden');
-                magicLinkTab.classList.add('active');
-                forgotPasswordLink.classList.add('hidden'); // Oculta o link de senha no modo Magic Link
-            } else if (mode === 'reset') {
-                resetForm.classList.remove('hidden');
-                forgotPasswordLink.classList.add('hidden');
-                loginTab.classList.add('active'); // Mantém o destaque na aba de login
-            }
-        }
-
-        loginTab.addEventListener('click', () => switchAuthMode('login'));
-        registerTab.addEventListener('click', () => switchAuthMode('register'));
-        magicLinkTab.addEventListener('click', () => switchAuthMode('magiclink'));
-        forgotPasswordLink.addEventListener('click', () => switchAuthMode('reset'));
-        backToLoginLink.addEventListener('click', () => switchAuthMode('login'));
-
-
-        // Lógica de Registro (E-mail e Senha)
-        registerForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('registerEmail').value;
-            const password = document.getElementById('registerPassword').value;
-            registerError.classList.add('hidden');
-
-            try {
-                await createUserWithEmailAndPassword(auth, email, password);
-                // Redireciona para o login ou simplesmente a mudança de estado (onAuthStateChanged) cuida disso
-            } catch (error) {
-                console.error(error);
-                let msg = 'Erro ao criar conta. Tente novamente.';
-                if (error.code === 'auth/weak-password') {
-                    msg = 'Senha fraca. Deve ter pelo menos 6 caracteres.';
-                } else if (error.code === 'auth/email-already-in-use') {
-                    msg = 'Este e-mail já está em uso.';
-                } else if (error.code === 'auth/invalid-email') {
-                    msg = 'Formato de e-mail inválido.';
-                }
-                registerError.textContent = msg;
-                registerError.classList.remove('hidden');
-            }
-        });
-
-        // Lógica de Login (E-mail e Senha)
-        loginForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('loginEmail').value;
-            const password = document.getElementById('loginPassword').value;
-            loginError.classList.add('hidden');
-
-            try {
-                await signInWithEmailAndPassword(auth, email, password);
-            } catch (error) {
-                console.error(error);
-                let msg = 'Erro ao fazer login. Verifique o e-mail e a senha.';
-                if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
-                    msg = 'Credenciais inválidas.';
-                }
-                loginError.textContent = msg;
-                loginError.classList.remove('hidden');
-            }
-        });
+        // =================================================================================
+        // FUNÇÕES DE PERFIL (NICKNAME)
+        // =================================================================================
         
-        // Lógica de Sign Out
-        signOutButton.addEventListener('click', async () => {
-            try {
-                await signOut(auth);
-            } catch (error) {
-                console.error("Erro ao sair:", error);
-            }
-        });
-
-        // Lógica de Link Mágico (Passwordless)
-        magicLinkForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('magicLinkEmail').value;
-            magicLinkMessage.classList.add('hidden');
+        async function checkUserProfile() {
+            if (!userId) return;
             
-            // actionCodeSettings deve ter o domínio do seu site Netlify na URL (domínio autorizado)
-            const actionCodeSettings = {
-                url: window.location.href, // Usa o URL atual do Netlify
-                handleCodeInApp: true,
-            };
-
+            const profileRef = doc(db, USER_PROFILE_COLLECTION_PATH, userId);
+            
             try {
-                await sendSignInLinkToEmail(auth, email, actionCodeSettings);
-                window.localStorage.setItem('emailForSignIn', email);
-                magicLinkMessage.textContent = `Link de login enviado para ${email}. Verifique sua caixa de entrada e clique no link para entrar!`;
-                magicLinkMessage.classList.remove('hidden');
-                magicLinkMessage.classList.remove('text-lose');
-                magicLinkMessage.classList.add('text-accent');
-            } catch (error) {
-                console.error("Erro Magic Link:", error);
-                magicLinkMessage.textContent = 'Erro ao enviar o link. Verifique o e-mail e tente novamente.';
-                magicLinkMessage.classList.remove('hidden');
-                magicLinkMessage.classList.add('text-lose');
-            }
-        });
-
-        // Função que verifica e finaliza o Login por Link Mágico
-        async function handleMagicLinkSignIn() {
-            if (isSignInWithEmailLink(auth, window.location.href)) {
-                let email = window.localStorage.getItem('emailForSignIn');
-                if (!email) {
-                    // Pede o e-mail novamente se o usuário abriu em outro dispositivo
-                    email = window.prompt('Por favor, confirme seu e-mail para finalizar o login.');
-                }
+                const profileSnap = await getDoc(profileRef);
                 
-                try {
-                    await signInWithEmailLink(auth, email, window.location.href);
-                    window.localStorage.removeItem('emailForSignIn');
-                    // O estado de autenticação será atualizado por onAuthStateChanged
-                } catch (error) {
-                    // Use a div para mensagens, pois alert() é ruim para UX
-                    document.getElementById('authMessage').textContent = `Erro ao completar o login por link: ${error.message}. Tente novamente.`;
-                    document.getElementById('authMessage').classList.add('text-lose');
-                    window.history.replaceState({}, document.title, window.location.pathname); // Limpa o URL
+                if (profileSnap.exists() && profileSnap.data().nickname) {
+                    userNickname = profileSnap.data().nickname;
+                    updateAuthStatus(`Logado: ${userNickname}`, "bg-green-100 text-green-600");
+                    hideModal('nickname-modal');
+                } else {
+                    userNickname = null;
+                    showModal('nickname-modal');
                 }
+            } catch (error) {
+                console.error("Erro ao checar perfil:", error);
+                updateAuthStatus("Erro ao carregar perfil. Recarregue.", "bg-red-100 text-red-600");
             }
         }
 
-        // Lógica de Reset de Senha
-        resetForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('resetEmail').value;
-            resetMessage.classList.add('hidden');
+        async function saveNickname() {
+            if (!userId || !db) return;
+
+            const input = document.getElementById('nickname-input');
+            const nickname = input.value.trim();
+            const errorElement = document.getElementById('nickname-error');
+            const button = document.getElementById('save-nickname-btn');
+
+            if (!nickname) return;
+
+            button.textContent = "Salvando...";
+            button.disabled = true;
+            errorElement.classList.add('hidden');
+            
+            const profileRef = doc(db, USER_PROFILE_COLLECTION_PATH, userId);
 
             try {
-                await sendPasswordResetEmail(auth, email);
-                resetMessage.textContent = 'Link de recuperação enviado para o seu e-mail.';
-                resetMessage.classList.remove('hidden');
-                resetMessage.classList.remove('text-lose');
-                resetMessage.classList.add('text-accent');
-            } catch (error) {
-                console.error("Erro Reset Senha:", error);
-                resetMessage.textContent = 'Erro ao enviar. Verifique se o e-mail está correto.';
-                resetMessage.classList.remove('hidden');
-                resetMessage.classList.add('text-lose');
-            }
-        });
-
-        // =========================================================================
-        // 4. LÓGICA DO PLACAR (FIRESTORE)
-        // =========================================================================
-
-        async function saveScore(nickname, attempts, time) {
-            if (!userId || !db) {
-                modalStatusMessage.textContent = "Erro: Usuário não logado. Por favor, faça login.";
-                modalStatusMessage.classList.add('text-lose');
-                return;
-            }
-
-            // Garante que o nickname não é vazio e está dentro do limite
-            if (!nickname || nickname.length > 12) {
-                modalStatusMessage.textContent = "Erro: Nickname inválido.";
-                modalStatusMessage.classList.add('text-lose');
-                return;
-            }
-
-            // --- MELHORIA: Feedback visual enquanto salva ---
-            saveScoreButton.disabled = true;
-            nicknameInput.disabled = true;
-            modalStatusMessage.textContent = "Salvando recorde...";
-            modalStatusMessage.classList.remove('text-lose', 'text-win');
-            modalStatusMessage.classList.add('text-accent');
-            // ------------------------------------------------
-
-            try {
-                await addDoc(collection(db, "leaderboard"), {
-                    userId: userId,
+                await setDoc(profileRef, {
                     nickname: nickname,
-                    attempts: attempts,
-                    time: time,
-                    timestamp: serverTimestamp()
+                    updatedAt: serverTimestamp()
+                }, { merge: true });
+
+                userNickname = nickname;
+                updateAuthStatus(`Logado: ${userNickname}`, "bg-green-100 text-green-600");
+                
+                // Oculta o modal e inicia o listener do placar
+                hideModal('nickname-modal');
+                setupLeaderboardListener(); 
+
+            } catch (error) {
+                console.error("Erro ao salvar nickname:", error);
+                errorElement.textContent = `Falha ao salvar. Tente novamente. Erro: ${error.message}`;
+                errorElement.classList.remove('hidden');
+            } finally {
+                button.textContent = "Salvar Nickname";
+                button.disabled = false;
+            }
+        }
+
+        // =================================================================================
+        // FUNÇÕES DE PLACAR (LEADERBOARD)
+        // =================================================================================
+
+        function setupLeaderboardListener() {
+            if (!db) {
+                console.error("Firestore não inicializado.");
+                return;
+            }
+
+            const leaderboardCollection = collection(db, LEADERBOARD_COLLECTION_PATH);
+            
+            // Consulta: 10 melhores scores (menor tempo é melhor), ordenados por tempo
+            const q = query(leaderboardCollection, orderBy("time_ms"), limit(10));
+
+            // onSnapshot: Atualiza o placar em tempo real
+            onSnapshot(q, (snapshot) => {
+                const leaderboardList = document.getElementById('leaderboard-list');
+                leaderboardList.innerHTML = '';
+                
+                if (snapshot.empty) {
+                    leaderboardList.innerHTML = '<div class="text-gray-500 italic">Nenhum recorde ainda. Seja o primeiro!</div>';
+                    return;
+                }
+
+                snapshot.forEach((doc, index) => {
+                    const data = doc.data();
+                    const rank = index + 1;
+                    const isCurrentUser = data.userId === userId;
+                    
+                    const listItem = `
+                        <div class="flex justify-between items-center p-3 rounded-lg ${isCurrentUser ? 'bg-indigo-50 border-2 border-indigo-400' : 'bg-gray-50'}">
+                            <span class="font-bold text-gray-700">${rank}. ${data.nickname}</span>
+                            <span class="font-extrabold ${isCurrentUser ? 'text-indigo-600' : 'text-gray-800'}">${data.time_ms} ms</span>
+                        </div>
+                    `;
+                    leaderboardList.innerHTML += listItem;
+                });
+            }, (error) => {
+                console.error("Erro ao conectar o Placar:", error);
+                document.getElementById('leaderboard-list').innerHTML = `
+                    <div class="text-red-500 font-bold">Erro ao conectar o Placar. (Verifique as Regras de Segurança do Firestore!)</div>
+                `;
+            });
+        }
+
+        async function saveScore(time_ms) {
+            if (!userNickname) {
+                // Se não tiver nickname, pede para salvar antes de tentar salvar o score
+                showModal('nickname-modal');
+                return;
+            }
+            if (!db || !userId) return;
+
+            const leaderboardCollection = collection(db, LEADERBOARD_COLLECTION_PATH);
+
+            try {
+                await addDoc(leaderboardCollection, {
+                    time_ms: time_ms,
+                    nickname: userNickname,
+                    userId: userId,
+                    createdAt: serverTimestamp()
                 });
                 
-                modalStatusMessage.textContent = "Recorde salvo com sucesso!";
-                modalStatusMessage.classList.remove('text-accent');
-                modalStatusMessage.classList.add('text-win');
+                // Exibir modal de sucesso
+                const title = document.getElementById('score-modal-title');
+                const message = document.getElementById('score-modal-message');
                 
-                // CORREÇÃO ANTERIOR: Fecha o modal após um pequeno atraso para o usuário ver a mensagem de sucesso
-                setTimeout(() => {
-                    hideScoreModal();
-                }, 1500); 
+                title.textContent = "Recorde Registrado!";
+                title.className = "text-2xl font-extrabold mb-2 text-green-600";
+                message.innerHTML = `Seu tempo de **${time_ms} ms** foi salvo no placar!`;
+                showModal('score-modal');
+
+                // Fechar automaticamente após 1.5 segundos
+                setTimeout(closeScoreModal, 1500);
 
             } catch (error) {
-                console.error("Erro ao salvar recorde:", error);
+                console.error("Erro ao salvar o score:", error);
                 
-                // --- MELHORIA: Mensagem de erro mais clara ---
-                let errorMessage = "Erro desconhecido. Tente novamente.";
-                if (error.code === 'permission-denied') {
-                    errorMessage = "PERMISSÃO NEGADA. Você precisa estar logado para salvar seu recorde. Por favor, verifique seu status de login e as Regras do Firestore.";
-                } else if (error.message.includes('permission')) {
-                    errorMessage = `Erro de Permissão: ${error.message}. (Verifique as Regras!)`;
-                } else {
-                    errorMessage = `Erro: ${error.message}`;
-                }
-                
-                modalStatusMessage.textContent = errorMessage;
-                modalStatusMessage.classList.remove('text-accent', 'text-win');
-                modalStatusMessage.classList.add('text-lose');
-                
-                // Reabilita o botão para permitir nova tentativa (e sair)
-                saveScoreButton.disabled = false;
-                nicknameInput.disabled = false;
-                // ----------------------------------------------
+                // Exibir modal de erro
+                const title = document.getElementById('score-modal-title');
+                const message = document.getElementById('score-modal-message');
+                title.textContent = "Falha ao Salvar";
+                title.className = "text-2xl font-extrabold mb-2 text-red-600";
+                message.innerHTML = `Não foi possível salvar seu recorde. Erro: <span class="text-sm text-red-500">${error.message}</span>`;
+                showModal('score-modal');
             }
         }
-
-        function renderLeaderboard(scores) {
-            leaderboardContainer.innerHTML = '';
-            loadingMessage.classList.add('hidden');
-            
-            if (scores.length === 0) {
-                leaderboardContainer.innerHTML = '<p class="text-gray-400 text-center">Nenhum recorde ainda. Seja o primeiro!</p>';
-                return;
-            }
-
-            scores.forEach((score, index) => {
-                const isCurrentUser = score.userId === userId;
-                const item = document.createElement('div');
-                item.className = `p-3 rounded-lg flex justify-between items-center transition duration-200 ${isCurrentUser ? 'bg-accent/30 border-2 border-accent' : 'bg-gray-700 border border-gray-600'}`;
-                
-                const rank = index + 1;
-                const attemptsText = score.attempts === 1 ? 'tentativa' : 'tentativas';
-                const rankText = index < 3 ? 'text-accent font-extrabold' : 'text-gray-300 font-bold';
-                
-                // Formata o tempo para ter 1 casa decimal
-                const timeFormatted = score.time ? score.time.toFixed(1) : '0.0';
-
-                item.innerHTML = `
-                    <div class="flex items-center space-x-3">
-                        <span class="text-xl ${rankText}">${rank}.</span>
-                        <span class="font-medium ${isCurrentUser ? 'text-white' : 'text-gray-200'}">${score.nickname}</span>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-sm text-gray-400">${timeFormatted}s</p>
-                        <p class="text-xs text-gray-500">${score.attempts} ${attemptsText}</p>
-                    </div>
-                `;
-                leaderboardContainer.appendChild(item);
-            });
-        }
-
-        function subscribeToLeaderboard() {
-            if (!db) return;
-            isLeaderboardActive = true;
-            
-            // Query: Menor número de tentativas (asc), depois menor tempo (asc), limitando a 10 resultados
-            const q = query(collection(db, "leaderboard"), orderBy("attempts", "asc"), orderBy("time", "asc"), limit(10));
-
-            onSnapshot(q, (snapshot) => {
-                const scores = snapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                }));
-                renderLeaderboard(scores);
-            }, (error) => {
-                console.error("Erro ao carregar placar:", error);
-                document.getElementById('leaderboardError').textContent = "Erro ao conectar o Placar. (Verifique as Regras de Segurança do Firestore!)";
-                document.getElementById('leaderboardError').classList.remove('hidden');
-            });
-        }
-
-
-        // =========================================================================
-        // 5. LÓGICA DO JOGO
-        // =========================================================================
-
-        function initGame() {
-            secretNumber = Math.floor(Math.random() * 100) + 1;
-            attemptsMade = 0;
-            isGameActive = true;
-            timeElapsed = 0;
-            gameStartTime = Date.now();
-            
-            messageDisplay.textContent = 'Digite um número e clique em Verificar!';
-            messageDisplay.className = 'p-4 rounded-lg text-center font-semibold text-lg bg-gray-700 text-gray-300 min-h-[4rem] flex items-center justify-center transition duration-300';
-            attemptsDisplay.textContent = maxAttempts;
-            guessInput.value = '';
-            guessInput.disabled = false;
-            checkButton.disabled = false;
-            resetButton.classList.add('hidden');
-            errorDisplay.classList.add('hidden');
-            timerDisplay.textContent = '0s';
-
-            clearInterval(gameTimer);
-            gameTimer = setInterval(updateTimer, 100); // Atualiza a cada 100ms
-        }
-
-        function updateTimer() {
-            if (isGameActive) {
-                timeElapsed = (Date.now() - gameStartTime) / 1000;
-                timerDisplay.textContent = `${timeElapsed.toFixed(1)}s`;
-            }
-        }
-
-        function checkGuess() {
-            if (!isGameActive) return;
-
-            const guess = parseInt(guessInput.value);
-
-            if (isNaN(guess) || guess < 1 || guess > 100) {
-                errorDisplay.classList.remove('hidden');
-                return;
-            }
-
-            errorDisplay.classList.add('hidden');
-            attemptsMade++;
-            const remaining = maxAttempts - attemptsMade;
-            attemptsDisplay.textContent = remaining;
-
-            if (guess === secretNumber) {
-                endGame(true);
-                messageDisplay.textContent = `🎉 Parabéns! Você acertou em ${attemptsMade} tentativas!`;
-                messageDisplay.className = 'p-4 rounded-lg text-center font-bold text-lg text-primary-bg bg-win min-h-[4rem] flex items-center justify-center transition duration-300';
-            } else if (remaining === 0) {
-                endGame(false);
-                messageDisplay.textContent = `Game Over! O número era ${secretNumber}.`;
-                messageDisplay.className = 'p-4 rounded-lg text-center font-bold text-lg text-white bg-lose min-h-[4rem] flex items-center justify-center transition duration-300';
-            } else if (guess < secretNumber) {
-                messageDisplay.textContent = 'O número secreto é maior. Tente novamente!';
-                messageDisplay.className = 'p-4 rounded-lg text-center font-semibold text-lg bg-gray-700 text-gray-300 min-h-[4rem] flex items-center justify-center transition duration-300';
-            } else {
-                messageDisplay.textContent = 'O número secreto é menor. Tente novamente!';
-                messageDisplay.className = 'p-4 rounded-lg text-center font-semibold text-lg bg-gray-700 text-gray-300 min-h-[4rem] flex items-center justify-center transition duration-300';
-            }
-
-            guessInput.value = '';
-            guessInput.focus();
-        }
-
-        function endGame(win) {
-            isGameActive = false;
-            clearInterval(gameTimer);
-            guessInput.disabled = true;
-            checkButton.disabled = true;
-            resetButton.classList.remove('hidden');
-
-            // Salva apenas se o usuário estiver logado e tiver ganhado
-            if (win && userId) {
-                showScoreModal(attemptsMade, timeElapsed);
-            }
-        }
-
-        function showScoreModal(attempts, time) {
-            modalMessage.innerHTML = `Você conseguiu em **${attempts} tentativas** e **${time.toFixed(1)} segundos**!`;
-            // Tenta pré-preencher o nickname com o nome de exibição, ou parte do email
-            const defaultNickname = currentUser?.displayName || currentUser?.email.split('@')[0] || '';
-            nicknameInput.value = defaultNickname.substring(0, 12); // Limita a 12 caracteres
-            
-            // Limpa o estado do modal
-            modalStatusMessage.textContent = "";
-            modalStatusMessage.classList.remove('text-lose', 'text-win', 'text-accent');
-            saveScoreButton.disabled = false;
-            nicknameInput.disabled = false;
-            
-            scoreModal.classList.remove('hidden');
-        }
-
-        function hideScoreModal() {
-            scoreModal.classList.add('hidden');
-            initGame();
-        }
-
-
-        // =========================================================================
-        // 6. EVENT LISTENERS
-        // =========================================================================
-
-        checkButton.addEventListener('click', checkGuess);
-        guessInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                checkGuess();
-            }
-        });
-        resetButton.addEventListener('click', initGame);
-
-        saveScoreButton.addEventListener('click', () => {
-            const nickname = nicknameInput.value.trim();
-            if (nickname) {
-                saveScore(nickname, attemptsMade, timeElapsed);
-            }
-        });
-
-        closeModalButton.addEventListener('click', hideScoreModal);
         
-        // =========================================================================
-        // 7. INICIALIZAÇÃO GERAL
-        // =========================================================================
-        
-        initFirebase(); 
+        function closeScoreModal() {
+            hideModal('score-modal');
+        }
 
+        // =================================================================================
+        // FUNÇÕES DO JOGO
+        // =================================================================================
+
+        function resetGame() {
+            clearTimeout(timerId);
+            isWaiting = false;
+            isGo = false;
+            reactionBox.className = 'reaction-box ready';
+            reactionBox.textContent = 'Clique para Começar';
+        }
+
+        function startGame() {
+            if (isWaiting || isGo) return; // Não iniciar se já estiver rodando
+
+            reactionBox.className = 'reaction-box wait';
+            reactionBox.textContent = 'Aguarde o VERDE...';
+            isWaiting = true;
+
+            const randomWait = Math.random() * (MAX_WAIT - MIN_WAIT) + MIN_WAIT;
+            
+            timerId = setTimeout(() => {
+                reactionBox.className = 'reaction-box go';
+                reactionBox.textContent = 'CLIQUE AGORA!';
+                isWaiting = false;
+                isGo = true;
+                startTime = performance.now();
+            }, randomWait);
+        }
+
+        function handleReactionClick() {
+            if (reactionBox.classList.contains('ready')) {
+                // Inicia o jogo
+                startGame();
+            } else if (reactionBox.classList.contains('wait')) {
+                // Clicou muito cedo
+                clearTimeout(timerId);
+                reactionBox.className = 'reaction-box too-soon';
+                reactionBox.textContent = 'Muito Cedo! Clique para Tentar Novamente.';
+                isWaiting = false;
+                isGo = false;
+            } else if (reactionBox.classList.contains('go')) {
+                // Clicou na hora certa
+                endTime = performance.now();
+                const reactionTime = Math.round(endTime - startTime);
+                
+                reactionBox.className = 'reaction-box result';
+                reactionBox.innerHTML = `Seu Tempo: <strong>${reactionTime} ms</strong>. <br> Clique para Tentar Novamente.`;
+                
+                isWaiting = false;
+                isGo = false;
+                
+                // Salva o score no Firestore
+                saveScore(reactionTime);
+                
+            } else if (reactionBox.classList.contains('too-soon') || reactionBox.classList.contains('result')) {
+                // Reinicia o jogo após um resultado ou erro
+                resetGame();
+            }
+        }
+
+        // =================================================================================
+        // INÍCIO DA APLICAÇÃO
+        // =================================================================================
+        window.onload = function() {
+            initFirebase();
+        }
     </script>
 </body>
 </html>
