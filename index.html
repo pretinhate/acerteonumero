@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Teste de Tempo de Reação</title>
+    <title>Jogos de Habilidade</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
@@ -33,6 +33,7 @@
             flex-direction: column;
             min-height: 400px;
         }
+        /* Estilos do Jogo de Reação */
         .reaction-box {
             flex-grow: 1;
             display: flex;
@@ -48,12 +49,24 @@
             padding: 20px;
             border-radius: 12px;
         }
-        .reaction-box.ready { background-color: #3b82f6; } /* Blue - Get Ready */
-        .reaction-box.wait { background-color: #f59e0b; cursor: not-allowed; } /* Yellow - Wait */
-        .reaction-box.go { background-color: #10b981; } /* Green - Click Now */
-        .reaction-box.too-soon { background-color: #ef4444; } /* Red - Too Soon */
-        .reaction-box.result { background-color: #6366f1; } /* Purple - Result */
+        .reaction-box.ready { background-color: #3b82f6; } 
+        .reaction-box.wait { background-color: #f59e0b; cursor: not-allowed; } 
+        .reaction-box.go { background-color: #10b981; } 
+        .reaction-box.too-soon { background-color: #ef4444; } 
+        .reaction-box.result { background-color: #6366f1; } 
         
+        /* Estilos do Seletor de Jogo */
+        .game-selector {
+            transition: background-color 0.2s, color 0.2s, transform 0.1s;
+        }
+        .game-selector.active {
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .game-selector:not(.active) {
+            background-color: #e5e7eb; /* gray-200 */
+            color: #4b5563; /* gray-600 */
+        }
+
         @media (min-width: 640px) {
             .reaction-box { font-size: 2.5rem; }
             .container { flex-direction: row; }
@@ -70,16 +83,51 @@
     
     <div class="container">
         
+        <!-- Controles de Seleção de Jogo -->
+        <div class="w-full flex justify-center gap-4 mb-4">
+            <button id="btn-reaction" class="game-selector active bg-indigo-600 text-white p-3 rounded-xl font-semibold w-1/2 md:w-auto" onclick="setGameMode('reaction')">
+                ⏱ Tempo de Reação
+            </button>
+            <button id="btn-guess" class="game-selector bg-gray-300 text-gray-800 p-3 rounded-xl font-semibold w-1/2 md:w-auto" onclick="setGameMode('guess')">
+                🔢 Adivinhe o Número
+            </button>
+        </div>
+
         <!-- Área do Jogo -->
         <div class="game-area">
-            <div id="reaction-box" class="reaction-box ready" onclick="handleReactionClick()">
-                Clique para Começar
+            
+            <!-- JOGO 1: TEMPO DE REAÇÃO -->
+            <div id="reaction-game" class="flex flex-col flex-grow">
+                <div id="reaction-box" class="reaction-box ready" onclick="handleReactionClick()">
+                    Clique para Começar
+                </div>
+            </div>
+
+            <!-- JOGO 2: ADIVINHE O NÚMERO (Escondido por padrão) -->
+            <div id="guess-game" class="hidden flex-col flex-grow p-6 items-center justify-center">
+                <h3 class="text-3xl font-bold text-pink-600 mb-6">Adivinhe o Número</h3>
+                
+                <p id="guess-message" class="text-xl font-semibold text-gray-700 mb-4">
+                    Tente acertar o número secreto (1 a 100)!
+                </p>
+                
+                <form id="guess-form" onsubmit="event.preventDefault(); submitGuess();" class="w-full max-w-xs">
+                    <!-- Campo de palpite com inputmode="numeric" para forçar o teclado numérico -->
+                    <input type="number" id="guess-input" placeholder="Seu palpite (1-100)" min="1" max="100"
+                           inputmode="numeric"
+                           class="w-full p-4 border-4 border-pink-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-pink-500 mb-4 text-center text-2xl font-bold" required>
+                    
+                    <button type="submit" id="guess-button" class="w-full bg-pink-600 text-white p-3 rounded-xl font-semibold hover:bg-pink-700 transition duration-200 shadow-lg">
+                        Chutar!
+                    </button>
+                </form>
+                <p id="attempts-counter" class="text-base mt-4 text-gray-500">Tentativas: 0</p>
             </div>
         </div>
 
         <!-- Placar e Status -->
         <div class="leaderboard-container bg-white p-6 rounded-xl shadow-lg flex flex-col gap-4">
-            <h2 class="text-2xl font-bold text-gray-800 border-b pb-2">🏆 Placar Global</h2>
+            <h2 id="leaderboard-title" class="text-2xl font-bold text-gray-800 border-b pb-2">🏆 Placar de Tempo de Reação</h2>
             
             <!-- Status de Autenticação -->
             <div id="auth-status" class="text-sm font-semibold p-2 rounded-lg">
@@ -100,8 +148,8 @@
             <p class="text-gray-600 mb-6">Você precisa de um apelido para aparecer no placar.</p>
             
             <form id="nickname-form" onsubmit="event.preventDefault(); saveNickname();">
-                <!-- CORREÇÃO AQUI: Adicionado inputmode="numeric" para forçar o teclado numérico em mobile -->
-                <input type="tel" inputmode="numeric" id="nickname-input" placeholder="Seu Nickname (letras e números)" maxlength="20"
+                <!-- Campo de nickname com teclado completo (removido inputmode="numeric") -->
+                <input type="text" id="nickname-input" placeholder="Seu Nickname (letras, números, etc.)" maxlength="20"
                        class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-4" required>
                 
                 <button type="submit" id="save-nickname-btn"
@@ -120,7 +168,7 @@
             <p id="score-modal-message" class="text-gray-700 mb-6">Parabéns! Seu tempo de **XXms** foi salvo.</p>
             
             <button onclick="closeScoreModal()"
-                    class="bg-indigo-500 text-white p-3 rounded-lg font-semibold hover_bg-indigo-600 transition duration-200">
+                    class="bg-indigo-500 text-white p-3 rounded-lg font-semibold hover:bg-indigo-600 transition duration-200">
                 Fechar
             </button>
         </div>
@@ -135,7 +183,7 @@
         // Importações e Inicialização
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query, addDoc, serverTimestamp, orderBy, limit } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection, query, serverTimestamp, orderBy, limit, getDoc } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
         import { setLogLevel } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore-lite.js";
         
         // Configuração Firebase
@@ -146,20 +194,44 @@
         let userNickname = null;
         let isAuthReady = false;
 
-        // Caminhos das Coleções (CORRIGIDOS PARA SINCRONIZAR COM AS REGRAS DE SEGURANÇA)
-        const LEADERBOARD_COLLECTION_PATH = "leaderboard"; 
-        const USER_PROFILE_COLLECTION_PATH = "users";
-        
-        setLogLevel('debug'); // Ativar logs de debug para o Firestore
+        // =================================================================================
+        // CORREÇÃO: Funções para obter os caminhos de coleção de acordo com as Regras de Segurança
+        // =================================================================================
 
-        // Variáveis do Jogo
+        // Coleções para o Placar (Dados Públicos/Compartilhados)
+        const REACTION_COLLECTION_NAME = "reaction_leaderboard"; 
+        const GUESS_COLLECTION_NAME = "guess_leaderboard"; 
+        
+        // Retorna a referência do documento do perfil (privado do usuário)
+        const getProfileRef = (db, uid) => {
+            // Caminho: /artifacts/{appId}/users/{userId}/profiles/user_details
+            return doc(db, `artifacts/${appId}/users/${uid}/profiles`, "user_details");
+        };
+
+        // Retorna a referência da coleção do placar (público)
+        const getLeaderboardCollectionRef = (db, collectionName) => {
+            // Caminho: /artifacts/{appId}/public/data/{collectionName}
+            return collection(db, `artifacts/${appId}/public/data/${collectionName}`);
+        };
+
+        // Variáveis de Modo de Jogo
+        let currentGameMode = 'reaction'; // 'reaction' ou 'guess'
+
+        // Variáveis do Jogo de Reação
         const reactionBox = document.getElementById('reaction-box');
-        let startTime, endTime;
+        let reactionStartTime, reactionEndTime;
         let isWaiting = false;
         let isGo = false;
         let timerId;
-        const MIN_WAIT = 1500; // 1.5 segundos
-        const MAX_WAIT = 4000; // 4 segundos
+        const MIN_WAIT = 1500;
+        const MAX_WAIT = 4000;
+
+        // Variáveis do Jogo de Palpite
+        let targetNumber = 0;
+        let guessAttempts = 0;
+        const guessMessage = document.getElementById('guess-message');
+        const attemptsCounter = document.getElementById('attempts-counter');
+        const guessInput = document.getElementById('guess-input');
 
         // =================================================================================
         // FUNÇÕES DE UTILIDADE E UI
@@ -178,12 +250,46 @@
         function hideModal(id) {
             document.getElementById(id).classList.add('hidden');
         }
+
+        function setGameMode(mode) {
+            if (currentGameMode === mode) return;
+
+            // Esconde/Mostra as áreas de jogo
+            document.getElementById('reaction-game').classList.add('hidden');
+            document.getElementById('guess-game').classList.add('hidden');
+            document.getElementById('reaction-game').classList.remove('flex-col');
+            document.getElementById('guess-game').classList.remove('flex-col');
+            
+            document.getElementById(`btn-${currentGameMode}`).classList.remove('active', 'bg-indigo-600', 'text-white', 'bg-pink-600');
+            document.getElementById(`btn-${currentGameMode}`).classList.add('bg-gray-300', 'text-gray-800');
+
+            currentGameMode = mode;
+
+            document.getElementById(`btn-${mode}`).classList.add('active', `bg-${mode === 'reaction' ? 'indigo' : 'pink'}-600`, 'text-white');
+            document.getElementById(`btn-${mode}`).classList.remove('bg-gray-300', 'text-gray-800');
+
+            document.getElementById(`${mode}-game`).classList.remove('hidden');
+            document.getElementById(`${mode}-game`).classList.add('flex-col');
+
+            // Atualiza Placar e reinicia o jogo
+            if (mode === 'reaction') {
+                document.getElementById('leaderboard-title').textContent = '🏆 Placar de Tempo de Reação';
+                if (isAuthReady) setupLeaderboardListener(REACTION_COLLECTION_NAME, "time_ms", "ms");
+                resetReactionGame();
+            } else { // guess
+                document.getElementById('leaderboard-title').textContent = '🥇 Placar de Adivinhe o Número (Tentativas)';
+                if (isAuthReady) setupLeaderboardListener(GUESS_COLLECTION_NAME, "attempts", " tentativas");
+                startGuessGame();
+            }
+        }
         
         // =================================================================================
         // FUNÇÕES DE AUTENTICAÇÃO E FIRESTORE (INICIALIZAÇÃO)
         // =================================================================================
 
         async function initFirebase() {
+            setLogLevel('debug'); // Ativar logs de debug para o Firestore
+            
             if (!firebaseConfig.apiKey) {
                 updateAuthStatus("Erro: Configuração do Firebase ausente.", "bg-red-100 text-red-600");
                 return;
@@ -197,21 +303,19 @@
                 onAuthStateChanged(auth, async (user) => {
                     if (user) {
                         userId = user.uid;
-                        updateAuthStatus(`Logado como: ${user.email || 'Usuário Anônimo'}`, "bg-green-100 text-green-600");
-                        await checkUserProfile();
+                        updateAuthStatus(`Logado como: ${user.uid}`, "bg-green-100 text-green-600");
                         isAuthReady = true;
+                        await checkUserProfile();
                         if (userNickname) {
-                           setupLeaderboardListener();
+                           // Inicia o listener do jogo padrão (Tempo de Reação) após a autenticação e nickname
+                           setupLeaderboardListener(REACTION_COLLECTION_NAME, "time_ms", "ms");
                         }
                     } else {
-                        // Tentar login com Custom Token fornecido pelo Canvas (preferido)
                         if (initialAuthToken) {
                             await signInWithCustomToken(auth, initialAuthToken);
                         } else {
-                            // Se não houver token, fazer login anonimamente
                             await signInAnonymously(auth);
                         }
-                        // O onAuthStateChanged será chamado novamente com o usuário logado
                     }
                 });
 
@@ -228,14 +332,15 @@
         async function checkUserProfile() {
             if (!userId) return;
             
-            const profileRef = doc(db, USER_PROFILE_COLLECTION_PATH, userId);
+            // CORRIGIDO: Usando o caminho seguro para o perfil
+            const profileRef = getProfileRef(db, userId);
             
             try {
                 const profileSnap = await getDoc(profileRef);
                 
                 if (profileSnap.exists() && profileSnap.data().nickname) {
                     userNickname = profileSnap.data().nickname;
-                    updateAuthStatus(`Logado: ${userNickname}`, "bg-green-100 text-green-600");
+                    updateAuthStatus(`Logado: ${userNickname} (ID: ${userId})`, "bg-green-100 text-green-600");
                     hideModal('nickname-modal');
                 } else {
                     userNickname = null;
@@ -261,7 +366,8 @@
             button.disabled = true;
             errorElement.classList.add('hidden');
             
-            const profileRef = doc(db, USER_PROFILE_COLLECTION_PATH, userId);
+            // CORRIGIDO: Usando o caminho seguro para o perfil
+            const profileRef = getProfileRef(db, userId);
 
             try {
                 await setDoc(profileRef, {
@@ -270,11 +376,14 @@
                 }, { merge: true });
 
                 userNickname = nickname;
-                updateAuthStatus(`Logado: ${userNickname}`, "bg-green-100 text-green-600");
+                updateAuthStatus(`Logado: ${userNickname} (ID: ${userId})`, "bg-green-100 text-green-600");
                 
-                // Oculta o modal e inicia o listener do placar
                 hideModal('nickname-modal');
-                setupLeaderboardListener(); 
+                // Inicia o listener do placar para o modo atual
+                const path = currentGameMode === 'reaction' ? REACTION_COLLECTION_NAME : GUESS_COLLECTION_NAME;
+                const field = currentGameMode === 'reaction' ? "time_ms" : "attempts";
+                const unit = currentGameMode === 'reaction' ? "ms" : " tentativas";
+                setupLeaderboardListener(path, field, unit);
 
             } catch (error) {
                 console.error("Erro ao salvar nickname:", error);
@@ -287,23 +396,27 @@
         }
 
         // =================================================================================
-        // FUNÇÕES DE PLACAR (LEADERBOARD)
+        // FUNÇÕES DE PLACAR (LEADERBOARD) - UNIFICADAS
         // =================================================================================
+        
+        let unsubscribeLeaderboard = null;
 
-        function setupLeaderboardListener() {
-            if (!db) {
-                console.error("Firestore não inicializado.");
-                return;
+        function setupLeaderboardListener(collectionName, orderByField, unit) {
+            if (!db) return;
+            
+            // Cancela o listener anterior se houver
+            if (unsubscribeLeaderboard) {
+                unsubscribeLeaderboard();
+                unsubscribeLeaderboard = null;
             }
 
-            const leaderboardCollection = collection(db, LEADERBOARD_COLLECTION_PATH);
+            // CORRIGIDO: Usando o caminho seguro para a coleção pública
+            const leaderboardCollection = getLeaderboardCollectionRef(db, collectionName);
             
-            // CORREÇÃO AQUI: Aumentamos o limite para 50 para garantir que pegamos os 10 melhores scores,
-            // mesmo que haja muitos scores duplicados antigos no banco de dados.
-            const q = query(leaderboardCollection, orderBy("time_ms"), limit(50));
+            const q = query(leaderboardCollection, orderBy(orderByField, "asc"), limit(50));
 
             // onSnapshot: Atualiza o placar em tempo real
-            onSnapshot(q, (snapshot) => {
+            unsubscribeLeaderboard = onSnapshot(q, (snapshot) => {
                 const leaderboardList = document.getElementById('leaderboard-list');
                 leaderboardList.innerHTML = '';
                 
@@ -312,104 +425,97 @@
                     return;
                 }
                 
-                // 1. Processar e filtrar os scores para garantir apenas a melhor pontuação por userId
-                // Como a query já ordena pelo menor tempo, o primeiro score que encontramos para um userId é o melhor.
                 const uniqueScores = [];
                 const seenUserIds = new Set();
 
                 snapshot.forEach(doc => {
                     const data = doc.data();
                     
-                    // Adiciona o score à lista apenas se o userId ainda não foi visto
                     if (!seenUserIds.has(data.userId)) {
                         seenUserIds.add(data.userId);
                         uniqueScores.push(data);
                     }
                 });
 
-
-                // 2. Exibir APENAS a lista dos 10 melhores únicos
-                uniqueScores.slice(0, 10).forEach((data, index) => { // Limitado explicitamente a 10
+                // Exibir APENAS a lista dos 10 melhores únicos
+                uniqueScores.slice(0, 10).forEach((data, index) => { 
                     const rank = index + 1;
                     const isCurrentUser = data.userId === userId;
+                    const scoreValue = data[orderByField];
                     
                     const listItem = `
                         <div class="flex justify-between items-center p-3 rounded-lg ${isCurrentUser ? 'bg-indigo-50 border-2 border-indigo-400' : 'bg-gray-50'}">
                             <span class="font-bold text-gray-700">${rank}. ${data.nickname}</span>
-                            <span class="font-extrabold ${isCurrentUser ? 'text-indigo-600' : 'text-gray-800'}">${data.time_ms} ms</span>
+                            <span class="font-extrabold ${isCurrentUser ? 'text-indigo-600' : 'text-gray-800'}">${scoreValue}${unit}</span>
                         </div>
                     `;
                     leaderboardList.innerHTML += listItem;
                 });
             }, (error) => {
-                console.error("Erro ao conectar o Placar:", error);
+                console.error(`Erro ao conectar o Placar (${collectionName}):`, error);
                 document.getElementById('leaderboard-list').innerHTML = `
-                    <div class="text-red-500 font-bold">Erro ao conectar o Placar. (Verifique as Regras de Segurança do Firestore!)</div>
+                    <div class="text-red-500 font-bold">Erro ao conectar o Placar.</div>
                 `;
             });
         }
 
-        async function saveScore(time_ms) {
+        async function saveScore(scoreValue, collectionName, scoreField, comparisonType) {
             if (!userNickname) {
-                // Se não tiver nickname, pede para salvar antes de tentar salvar o score
                 showModal('nickname-modal');
                 return;
             }
             if (!db || !userId) return;
 
-            // Define o documento do score usando o próprio userId como ID do documento.
-            // Isso garante que cada usuário terá APENAS UM documento no placar.
-            const scoreDocRef = doc(db, LEADERBOARD_COLLECTION_PATH, userId);
+            // CORRIGIDO: Obtendo a ref da coleção e o doc com o userId como ID
+            const leaderboardCollectionRef = getLeaderboardCollectionRef(db, collectionName);
+            const scoreDocRef = doc(leaderboardCollectionRef, userId);
 
             try {
                 const docSnap = await getDoc(scoreDocRef);
                 
                 let shouldSave = true;
+                let currentBestScore = null;
                 
                 if (docSnap.exists()) {
-                    const currentBestTime = docSnap.data().time_ms;
-                    // Se o novo tempo for MAIOR ou IGUAL ao tempo atual, não salva.
-                    if (time_ms >= currentBestTime) {
-                        shouldSave = false;
-                    }
+                    currentBestScore = docSnap.data()[scoreField];
+                    
+                    // Lógica para garantir que só salva se for MELHOR (menor)
+                    if (comparisonType === 'min') {
+                        if (scoreValue >= currentBestScore) {
+                            shouldSave = false;
+                        }
+                    } 
                 }
                 
                 // Variáveis para o Modal
                 const title = document.getElementById('score-modal-title');
                 const message = document.getElementById('score-modal-message');
+                const unit = collectionName === REACTION_COLLECTION_NAME ? 'ms' : ' tentativas';
 
                 if (shouldSave) {
-                    // É um novo recorde pessoal (ou o primeiro score), então salva/sobrescreve
                     await setDoc(scoreDocRef, {
-                        time_ms: time_ms, // Armazena o novo melhor tempo
+                        [scoreField]: scoreValue, 
                         nickname: userNickname,
                         userId: userId,
                         updatedAt: serverTimestamp()
                     });
 
-                    // Exibir modal de sucesso (Novo Recorde)
                     title.textContent = docSnap.exists() ? "NOVO RECORD!" : "Recorde Registrado!";
                     title.className = "text-2xl font-extrabold mb-2 text-green-600";
-                    message.innerHTML = `Seu novo melhor tempo de **${time_ms} ms** foi salvo no placar!`;
+                    message.innerHTML = `Seu novo melhor tempo de **${scoreValue}${unit}** foi salvo no placar!`;
 
                 } else {
-                    // Não foi um recorde pessoal
-                    const currentBestTime = docSnap.data().time_ms;
-                    
                     title.textContent = "Tempo Não Registrado";
                     title.className = "text-2xl font-extrabold mb-2 text-yellow-600";
-                    message.innerHTML = `Seu tempo de **${time_ms} ms** não superou seu recorde atual de **${currentBestTime} ms**. Tente de novo!`;
+                    message.innerHTML = `Seu resultado de **${scoreValue}${unit}** não superou seu recorde atual de **${currentBestScore}${unit}**. Tente de novo!`;
                 }
 
                 showModal('score-modal');
-                
-                // Fechar automaticamente após 3 segundos para dar tempo de ler o resultado
                 setTimeout(closeScoreModal, 3000);
 
             } catch (error) {
                 console.error("Erro ao salvar o score:", error);
                 
-                // Exibir modal de erro
                 const title = document.getElementById('score-modal-title');
                 const message = document.getElementById('score-modal-message');
                 title.textContent = "Falha ao Salvar";
@@ -425,10 +531,10 @@
         }
 
         // =================================================================================
-        // FUNÇÕES DO JOGO
+        // LÓGICA DO JOGO DE REAÇÃO
         // =================================================================================
 
-        function resetGame() {
+        function resetReactionGame() {
             clearTimeout(timerId);
             isWaiting = false;
             isGo = false;
@@ -436,8 +542,8 @@
             reactionBox.textContent = 'Clique para Começar';
         }
 
-        function startGame() {
-            if (isWaiting || isGo) return; // Não iniciar se já estiver rodando
+        function startReactionGame() {
+            if (isWaiting || isGo) return; 
 
             reactionBox.className = 'reaction-box wait';
             reactionBox.textContent = 'Aguarde o VERDE...';
@@ -450,25 +556,24 @@
                 reactionBox.textContent = 'CLIQUE AGORA!';
                 isWaiting = false;
                 isGo = true;
-                startTime = performance.now();
+                reactionStartTime = performance.now();
             }, randomWait);
         }
 
-        function handleReactionClick() {
+        window.handleReactionClick = function() {
+            if (currentGameMode !== 'reaction') return;
+
             if (reactionBox.classList.contains('ready')) {
-                // Inicia o jogo
-                startGame();
+                startReactionGame();
             } else if (reactionBox.classList.contains('wait')) {
-                // Clicou muito cedo
                 clearTimeout(timerId);
                 reactionBox.className = 'reaction-box too-soon';
                 reactionBox.textContent = 'Muito Cedo! Clique para Tentar Novamente.';
                 isWaiting = false;
                 isGo = false;
             } else if (reactionBox.classList.contains('go')) {
-                // Clicou na hora certa
-                endTime = performance.now();
-                const reactionTime = Math.round(endTime - startTime);
+                reactionEndTime = performance.now();
+                const reactionTime = Math.round(reactionEndTime - reactionStartTime);
                 
                 reactionBox.className = 'reaction-box result';
                 reactionBox.innerHTML = `Seu Tempo: <strong>${reactionTime} ms</strong>. <br> Clique para Tentar Novamente.`;
@@ -476,20 +581,74 @@
                 isWaiting = false;
                 isGo = false;
                 
-                // Salva o score no Firestore
-                saveScore(reactionTime);
+                saveScore(reactionTime, REACTION_COLLECTION_NAME, "time_ms", 'min');
                 
             } else if (reactionBox.classList.contains('too-soon') || reactionBox.classList.contains('result')) {
-                // Reinicia o jogo após um resultado ou erro
-                resetGame();
+                resetReactionGame();
             }
         }
+
+        // =================================================================================
+        // LÓGICA DO JOGO ADIVINHE O NÚMERO
+        // =================================================================================
+
+        function startGuessGame() {
+            // Reinicia o estado do jogo
+            targetNumber = Math.floor(Math.random() * 100) + 1; // Número entre 1 e 100
+            guessAttempts = 0;
+            guessMessage.textContent = 'Tente acertar o número secreto (1 a 100)!';
+            attemptsCounter.textContent = 'Tentativas: 0';
+            guessInput.value = '';
+            guessInput.disabled = false;
+            document.getElementById('guess-button').disabled = false;
+            guessInput.focus();
+            console.log("Número Secreto: ", targetNumber); // Para depuração
+        }
+
+        window.submitGuess = function() {
+            if (currentGameMode !== 'guess' || guessInput.disabled) return;
+
+            const guess = parseInt(guessInput.value);
+
+            if (isNaN(guess) || guess < 1 || guess > 100) {
+                guessMessage.textContent = 'Por favor, insira um número válido entre 1 e 100.';
+                guessMessage.className = 'text-xl font-semibold text-red-500 mb-4';
+                guessInput.value = '';
+                return;
+            }
+
+            guessAttempts++;
+            attemptsCounter.textContent = `Tentativas: ${guessAttempts}`;
+            guessMessage.className = 'text-xl font-semibold text-gray-700 mb-4';
+            
+            if (guess === targetNumber) {
+                guessMessage.textContent = `🎉 Parabéns! Você acertou o número ${targetNumber} em ${guessAttempts} tentativas!`;
+                guessMessage.className = 'text-2xl font-extrabold text-green-600 mb-4';
+                guessInput.disabled = true;
+                document.getElementById('guess-button').disabled = true;
+
+                // Salva o score (menor número de tentativas)
+                saveScore(guessAttempts, GUESS_COLLECTION_NAME, "attempts", 'min');
+
+            } else if (guess < targetNumber) {
+                guessMessage.textContent = 'É MAIOR. Tente novamente!';
+                guessMessage.className = 'text-xl font-semibold text-orange-500 mb-4';
+            } else {
+                guessMessage.textContent = 'É MENOR. Tente novamente!';
+                guessMessage.className = 'text-xl font-semibold text-blue-500 mb-4';
+            }
+            
+            guessInput.value = ''; // Limpa o input após o chute
+            guessInput.focus();
+        }
+
 
         // =================================================================================
         // INÍCIO DA APLICAÇÃO
         // =================================================================================
         window.onload = function() {
             initFirebase();
+            setGameMode('reaction'); // Define o modo inicial
         }
     </script>
 </body>
