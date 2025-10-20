@@ -77,9 +77,7 @@
 </head>
 <body>
 
-    <script src="https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js"></script>
+    <!-- Tags de script do Firebase não são mais necessárias, pois estamos usando importações ES Module abaixo. -->
     
     <div class="container">
         
@@ -112,7 +110,7 @@
                 </p>
                 
                 <form id="guess-form" onsubmit="event.preventDefault(); submitGuess();" class="w-full max-w-xs">
-                    <!-- Campo de palpite com inputmode="numeric" para forçar o teclado numérico -->
+                    <!-- Campo de palpite com inputmode="numeric" e type="number" para forçar o teclado numérico -->
                     <input type="number" id="guess-input" placeholder="Seu palpite (1-100)" min="1" max="100"
                            inputmode="numeric"
                            class="w-full p-4 border-4 border-pink-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-pink-500 mb-4 text-center text-2xl font-bold" required>
@@ -148,8 +146,9 @@
             <p class="text-gray-600 mb-6">Você precisa de um apelido para aparecer no placar.</p>
             
             <form id="nickname-form" onsubmit="event.preventDefault(); saveNickname();">
-                <!-- Campo de nickname com teclado completo (removido inputmode="numeric") -->
+                <!-- Campo de nickname com type="text" e inputmode="text" para forçar o teclado completo. -->
                 <input type="text" id="nickname-input" placeholder="Seu Nickname (letras, números, etc.)" maxlength="20"
+                       inputmode="text"
                        class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-4" required>
                 
                 <button type="submit" id="save-nickname-btn"
@@ -182,9 +181,9 @@
         
         // Importações e Inicialização
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot, collection, query, serverTimestamp, orderBy, limit, getDoc } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
-        import { setLogLevel } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore-lite.js";
+        // A importação de 'setLogLevel' de 'firebase-firestore-lite.js' foi removida para evitar o erro de script genérico.
         
         // Configuração Firebase
         let app;
@@ -195,7 +194,7 @@
         let isAuthReady = false;
 
         // =================================================================================
-        // CORREÇÃO: Funções para obter os caminhos de coleção de acordo com as Regras de Segurança
+        // FUNÇÕES PARA FIREBASE E REGRAS DE SEGURANÇA
         // =================================================================================
 
         // Coleções para o Placar (Dados Públicos/Compartilhados)
@@ -288,7 +287,6 @@
         // =================================================================================
 
         async function initFirebase() {
-            setLogLevel('debug'); // Ativar logs de debug para o Firestore
             
             if (!firebaseConfig.apiKey) {
                 updateAuthStatus("Erro: Configuração do Firebase ausente.", "bg-red-100 text-red-600");
@@ -303,7 +301,8 @@
                 onAuthStateChanged(auth, async (user) => {
                     if (user) {
                         userId = user.uid;
-                        updateAuthStatus(`Logado como: ${user.uid}`, "bg-green-100 text-green-600");
+                        // Exibir apenas o Nickname no status para melhor UX, mantendo o userId para debug
+                        updateAuthStatus(`Logado como: ${user.uid.substring(0, 8)}...`, "bg-green-100 text-green-600");
                         isAuthReady = true;
                         await checkUserProfile();
                         if (userNickname) {
@@ -332,7 +331,6 @@
         async function checkUserProfile() {
             if (!userId) return;
             
-            // CORRIGIDO: Usando o caminho seguro para o perfil
             const profileRef = getProfileRef(db, userId);
             
             try {
@@ -340,7 +338,8 @@
                 
                 if (profileSnap.exists() && profileSnap.data().nickname) {
                     userNickname = profileSnap.data().nickname;
-                    updateAuthStatus(`Logado: ${userNickname} (ID: ${userId})`, "bg-green-100 text-green-600");
+                    // Exibir apenas o Nickname no status para melhor UX, mantendo o userId para debug
+                    updateAuthStatus(`Logado: ${userNickname} (ID: ${userId.substring(0, 8)}...)`, "bg-green-100 text-green-600"); 
                     hideModal('nickname-modal');
                 } else {
                     userNickname = null;
@@ -348,7 +347,7 @@
                 }
             } catch (error) {
                 console.error("Erro ao checar perfil:", error);
-                updateAuthStatus("Erro ao carregar perfil. Recarregue.", "bg-red-100 text-red-600");
+                // Não atualizar o status para não sobrescrever o ID de autenticação se for um erro de permissão
             }
         }
 
@@ -366,7 +365,6 @@
             button.disabled = true;
             errorElement.classList.add('hidden');
             
-            // CORRIGIDO: Usando o caminho seguro para o perfil
             const profileRef = getProfileRef(db, userId);
 
             try {
@@ -376,14 +374,14 @@
                 }, { merge: true });
 
                 userNickname = nickname;
-                updateAuthStatus(`Logado: ${userNickname} (ID: ${userId})`, "bg-green-100 text-green-600");
+                updateAuthStatus(`Logado: ${userNickname} (ID: ${userId.substring(0, 8)}...)`, "bg-green-100 text-green-600");
                 
                 hideModal('nickname-modal');
                 // Inicia o listener do placar para o modo atual
-                const path = currentGameMode === 'reaction' ? REACTION_COLLECTION_NAME : GUESS_COLLECTION_NAME;
+                const collectionName = currentGameMode === 'reaction' ? REACTION_COLLECTION_NAME : GUESS_COLLECTION_NAME;
                 const field = currentGameMode === 'reaction' ? "time_ms" : "attempts";
                 const unit = currentGameMode === 'reaction' ? "ms" : " tentativas";
-                setupLeaderboardListener(path, field, unit);
+                setupLeaderboardListener(collectionName, field, unit);
 
             } catch (error) {
                 console.error("Erro ao salvar nickname:", error);
@@ -410,9 +408,10 @@
                 unsubscribeLeaderboard = null;
             }
 
-            // CORRIGIDO: Usando o caminho seguro para a coleção pública
             const leaderboardCollection = getLeaderboardCollectionRef(db, collectionName);
             
+            // Usamos orderBy("asc") para ambos os placares, pois queremos o MENOR tempo (reação) 
+            // e o MENOR número de tentativas (adivinhe o número).
             const q = query(leaderboardCollection, orderBy(orderByField, "asc"), limit(50));
 
             // onSnapshot: Atualiza o placar em tempo real
@@ -431,6 +430,7 @@
                 snapshot.forEach(doc => {
                     const data = doc.data();
                     
+                    // Garante unicidade no placar por userId, pegando apenas o melhor resultado
                     if (!seenUserIds.has(data.userId)) {
                         seenUserIds.add(data.userId);
                         uniqueScores.push(data);
@@ -466,8 +466,8 @@
             }
             if (!db || !userId) return;
 
-            // CORRIGIDO: Obtendo a ref da coleção e o doc com o userId como ID
             const leaderboardCollectionRef = getLeaderboardCollectionRef(db, collectionName);
+            // O documento tem o ID do usuário para garantir que cada usuário só tenha um recorde
             const scoreDocRef = doc(leaderboardCollectionRef, userId);
 
             try {
@@ -479,7 +479,7 @@
                 if (docSnap.exists()) {
                     currentBestScore = docSnap.data()[scoreField];
                     
-                    // Lógica para garantir que só salva se for MELHOR (menor)
+                    // Lógica para garantir que só salva se for MELHOR (menor valor)
                     if (comparisonType === 'min') {
                         if (scoreValue >= currentBestScore) {
                             shouldSave = false;
