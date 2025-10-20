@@ -100,8 +100,8 @@
             <p class="text-gray-600 mb-6">Você precisa de um apelido para aparecer no placar.</p>
             
             <form id="nickname-form" onsubmit="event.preventDefault(); saveNickname();">
-                <!-- ALTERAÇÃO AQUI: Mudança de type="text" para type="tel" para forçar o teclado numérico em mobile -->
-                <input type="tel" id="nickname-input" placeholder="Seu Nickname (letras e números)" maxlength="20"
+                <!-- CORREÇÃO AQUI: Adicionado inputmode="numeric" para forçar o teclado numérico em mobile -->
+                <input type="tel" inputmode="numeric" id="nickname-input" placeholder="Seu Nickname (letras e números)" maxlength="20"
                        class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-4" required>
                 
                 <button type="submit" id="save-nickname-btn"
@@ -120,7 +120,7 @@
             <p id="score-modal-message" class="text-gray-700 mb-6">Parabéns! Seu tempo de **XXms** foi salvo.</p>
             
             <button onclick="closeScoreModal()"
-                    class="bg-indigo-500 text-white p-3 rounded-lg font-semibold hover:bg-indigo-600 transition duration-200">
+                    class="bg-indigo-500 text-white p-3 rounded-lg font-semibold hover_bg-indigo-600 transition duration-200">
                 Fechar
             </button>
         </div>
@@ -298,8 +298,9 @@
 
             const leaderboardCollection = collection(db, LEADERBOARD_COLLECTION_PATH);
             
-            // Consulta: 10 melhores scores (menor tempo é melhor), ordenados por tempo
-            const q = query(leaderboardCollection, orderBy("time_ms"), limit(10));
+            // CORREÇÃO AQUI: Aumentamos o limite para 50 para garantir que pegamos os 10 melhores scores,
+            // mesmo que haja muitos scores duplicados antigos no banco de dados.
+            const q = query(leaderboardCollection, orderBy("time_ms"), limit(50));
 
             // onSnapshot: Atualiza o placar em tempo real
             onSnapshot(q, (snapshot) => {
@@ -312,6 +313,7 @@
                 }
                 
                 // 1. Processar e filtrar os scores para garantir apenas a melhor pontuação por userId
+                // Como a query já ordena pelo menor tempo, o primeiro score que encontramos para um userId é o melhor.
                 const uniqueScores = [];
                 const seenUserIds = new Set();
 
@@ -326,8 +328,8 @@
                 });
 
 
-                // 2. Exibir a lista filtrada
-                uniqueScores.forEach((data, index) => {
+                // 2. Exibir APENAS a lista dos 10 melhores únicos
+                uniqueScores.slice(0, 10).forEach((data, index) => { // Limitado explicitamente a 10
                     const rank = index + 1;
                     const isCurrentUser = data.userId === userId;
                     
@@ -356,7 +358,7 @@
             if (!db || !userId) return;
 
             // Define o documento do score usando o próprio userId como ID do documento.
-            // Isso garante que cada usuário terá APENHAS UM documento no placar.
+            // Isso garante que cada usuário terá APENAS UM documento no placar.
             const scoreDocRef = doc(db, LEADERBOARD_COLLECTION_PATH, userId);
 
             try {
