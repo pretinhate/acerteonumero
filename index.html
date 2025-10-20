@@ -108,9 +108,9 @@
                 </p>
                 
                 <form id="guess-form" onsubmit="event.preventDefault(); submitGuess();" class="w-full max-w-xs">
-                    <!-- CORREÇÃO: Usando type="tel" + inputmode="numeric" + pattern="[0-9]*" para forçar o teclado numérico em todos os dispositivos. -->
-                    <input type="tel" id="guess-input" placeholder="Seu palpite (1-100)" min="1" max="100"
-                           inputmode="numeric" pattern="[0-9]*"
+                    <!-- CORREÇÃO: Usando type="number" + inputmode="numeric" (melhor semanticamente e para ranges) para otimizar o teclado numérico, pois type="tel" não estava a funcionar de forma consistente. -->
+                    <input type="number" id="guess-input" placeholder="Seu palpite (1-100)" min="1" max="100"
+                           inputmode="numeric"
                            class="w-full p-4 border-4 border-pink-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-pink-500 mb-4 text-center text-2xl font-bold" required>
                     
                     <button type="submit" id="guess-button" class="w-full bg-pink-600 text-white p-3 rounded-xl font-semibold hover:bg-pink-700 transition duration-200 shadow-lg">
