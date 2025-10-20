@@ -76,8 +76,6 @@
     </style>
 </head>
 <body>
-
-    <!-- Tags de script do Firebase não são mais necessárias, pois estamos usando importações ES Module abaixo. -->
     
     <div class="container">
         
@@ -110,9 +108,9 @@
                 </p>
                 
                 <form id="guess-form" onsubmit="event.preventDefault(); submitGuess();" class="w-full max-w-xs">
-                    <!-- Campo de palpite com inputmode="numeric" e type="number" para forçar o teclado numérico -->
-                    <input type="number" id="guess-input" placeholder="Seu palpite (1-100)" min="1" max="100"
-                           inputmode="numeric"
+                    <!-- CORREÇÃO: Usando type="tel" + inputmode="numeric" + pattern="[0-9]*" para forçar o teclado numérico em todos os dispositivos. -->
+                    <input type="tel" id="guess-input" placeholder="Seu palpite (1-100)" min="1" max="100"
+                           inputmode="numeric" pattern="[0-9]*"
                            class="w-full p-4 border-4 border-pink-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-pink-500 mb-4 text-center text-2xl font-bold" required>
                     
                     <button type="submit" id="guess-button" class="w-full bg-pink-600 text-white p-3 rounded-xl font-semibold hover:bg-pink-700 transition duration-200 shadow-lg">
@@ -183,7 +181,6 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot, collection, query, serverTimestamp, orderBy, limit, getDoc } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
-        // A importação de 'setLogLevel' de 'firebase-firestore-lite.js' foi removida para evitar o erro de script genérico.
         
         // Configuração Firebase
         let app;
@@ -209,7 +206,7 @@
 
         // Retorna a referência da coleção do placar (público)
         const getLeaderboardCollectionRef = (db, collectionName) => {
-            // Caminho: /artifacts/{appId}/public/data/{collectionName}
+            // Caminho: /artifacts/{appId}/public/data/${collectionName}
             return collection(db, `artifacts/${appId}/public/data/${collectionName}`);
         };
 
@@ -608,6 +605,7 @@
         window.submitGuess = function() {
             if (currentGameMode !== 'guess' || guessInput.disabled) return;
 
+            // Garante que o valor é um número inteiro
             const guess = parseInt(guessInput.value);
 
             if (isNaN(guess) || guess < 1 || guess > 100) {
