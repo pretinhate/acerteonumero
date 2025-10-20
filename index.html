@@ -67,11 +67,31 @@
             color: #4b5563; /* gray-600 */
         }
 
+        /* Estilos do Teclado Customizado */
+        #custom-keypad {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 50;
+            background-color: #f3f4f6; /* gray-100 */
+            padding: 1rem;
+            border-top: 4px solid #db2777; /* pink-600 */
+            box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.2);
+        }
+        .keypad-btn {
+            @apply p-4 text-2xl font-bold bg-white rounded-xl shadow-lg hover:bg-gray-200 transition duration-150 active:scale-95;
+        }
+
         @media (min-width: 640px) {
             .reaction-box { font-size: 2.5rem; }
             .container { flex-direction: row; }
             .game-area { flex: 2; }
             .leaderboard-container { flex: 1; }
+            /* Esconde o teclado customizado em telas grandes, o input deve ser usado via mouse/teclado normal */
+            #custom-keypad {
+                display: none !important; 
+            }
         }
     </style>
 </head>
@@ -108,10 +128,10 @@
                 </p>
                 
                 <form id="guess-form" onsubmit="event.preventDefault(); submitGuess();" class="w-full max-w-xs">
-                    <!-- CORREÇÃO: Usando type="number" + inputmode="numeric" (melhor semanticamente e para ranges) para otimizar o teclado numérico, pois type="tel" não estava a funcionar de forma consistente. -->
-                    <input type="number" id="guess-input" placeholder="Seu palpite (1-100)" min="1" max="100"
-                           inputmode="numeric"
-                           class="w-full p-4 border-4 border-pink-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-pink-500 mb-4 text-center text-2xl font-bold" required>
+                    <!-- Input agora é readonly e type="text" para impedir o teclado nativo, usando o teclado customizado -->
+                    <input type="text" id="guess-input" placeholder="Seu palpite (1-100)" readonly
+                           class="w-full p-4 border-4 border-pink-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-pink-500 mb-4 text-center text-2xl font-bold" 
+                           onfocus="showCustomKeypad(true)" onblur="validateGuessInput()" required>
                     
                     <button type="submit" id="guess-button" class="w-full bg-pink-600 text-white p-3 rounded-xl font-semibold hover:bg-pink-700 transition duration-200 shadow-lg">
                         Chutar!
@@ -136,7 +156,30 @@
             </div>
         </div>
     </div>
-
+    
+    <!-- Custom Keypad (Para forçar apenas números em dispositivos móveis) -->
+    <div id="custom-keypad" class="hidden">
+        <div class="grid grid-cols-3 gap-3 max-w-sm mx-auto">
+            <!-- Linha 1 -->
+            <button type="button" class="keypad-btn" onclick="keypadInput('1')">1</button>
+            <button type="button" class="keypad-btn" onclick="keypadInput('2')">2</button>
+            <button type="button" class="keypad-btn" onclick="keypadInput('3')">3</button>
+            <!-- Linha 2 -->
+            <button type="button" class="keypad-btn" onclick="keypadInput('4')">4</button>
+            <button type="button" class="keypad-btn" onclick="keypadInput('5')">5</button>
+            <button type="button" class="keypad-btn" onclick="keypadInput('6')">6</button>
+            <!-- Linha 3 -->
+            <button type="button" class="keypad-btn" onclick="keypadInput('7')">7</button>
+            <button type="button" class="keypad-btn" onclick="keypadInput('8')">8</button>
+            <button type="button" class="keypad-btn" onclick="keypadInput('9')">9</button>
+            <!-- Linha 4 -->
+            <button type="button" class="keypad-btn bg-red-400 hover:bg-red-500 text-white" onclick="keypadInput('delete')">DEL</button>
+            <button type="button" class="keypad-btn" onclick="keypadInput('0')">0</button>
+            <!-- O botão OK submete o formulário e fecha o teclado -->
+            <button type="button" class="keypad-btn bg-pink-600 hover:bg-pink-700 text-white" onclick="document.getElementById('guess-form').requestSubmit()">OK</button>
+        </div>
+    </div>
+    
     <!-- Modal para Nickname (Escondido por padrão) -->
     <div id="nickname-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
         <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-sm transform transition-all">
@@ -144,7 +187,6 @@
             <p class="text-gray-600 mb-6">Você precisa de um apelido para aparecer no placar.</p>
             
             <form id="nickname-form" onsubmit="event.preventDefault(); saveNickname();">
-                <!-- Campo de nickname com type="text" e inputmode="text" para forçar o teclado completo. -->
                 <input type="text" id="nickname-input" placeholder="Seu Nickname (letras, números, etc.)" maxlength="20"
                        inputmode="text"
                        class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-4" required>
@@ -258,6 +300,9 @@
             
             document.getElementById(`btn-${currentGameMode}`).classList.remove('active', 'bg-indigo-600', 'text-white', 'bg-pink-600');
             document.getElementById(`btn-${currentGameMode}`).classList.add('bg-gray-300', 'text-gray-800');
+            
+            // Esconde o teclado customizado ao mudar de jogo
+            showCustomKeypad(false);
 
             currentGameMode = mode;
 
@@ -586,8 +631,55 @@
         }
 
         // =================================================================================
-        // LÓGICA DO JOGO ADIVINHE O NÚMERO
+        // LÓGICA DO JOGO ADIVINHE O NÚMERO E TECLADO CUSTOMIZADO
         // =================================================================================
+
+        // Manipulação do teclado customizado
+        window.showCustomKeypad = function(show) {
+            const keypad = document.getElementById('custom-keypad');
+            // Só mostra o teclado em modo de palpite E em telas pequenas (mobile)
+            if (show && currentGameMode === 'guess' && window.innerWidth < 640) {
+                keypad.classList.remove('hidden');
+                document.getElementById('guess-button').disabled = false;
+            } else {
+                keypad.classList.add('hidden');
+            }
+        }
+
+        window.keypadInput = function(value) {
+            const input = document.getElementById('guess-input');
+            let currentValue = input.value;
+
+            if (value === 'delete') {
+                input.value = currentValue.slice(0, -1);
+            } else {
+                // Impede mais de 3 dígitos (máximo 100)
+                if (currentValue.length < 3) {
+                    input.value += value;
+                }
+            }
+            // Validação visual
+            validateGuessInput();
+            
+            // Re-foca o input para manter o teclado visível
+            input.focus(); 
+        }
+
+        function validateGuessInput() {
+            const input = document.getElementById('guess-input');
+            const guess = parseInt(input.value);
+            
+            // Validação visual: Se o número for maior que 100 OU for 0 (0 não é um palpite válido de 1 a 100)
+            if (guess > 100 || (input.value.length > 0 && guess === 0)) {
+                input.classList.add('border-red-500');
+                input.classList.remove('border-pink-300');
+                return false;
+            } else {
+                input.classList.remove('border-red-500');
+                input.classList.add('border-pink-300');
+                return true;
+            }
+        }
 
         function startGuessGame() {
             // Reinicia o estado do jogo
@@ -598,7 +690,10 @@
             guessInput.value = '';
             guessInput.disabled = false;
             document.getElementById('guess-button').disabled = false;
-            guessInput.focus();
+            
+            // Tenta mostrar o teclado customizado em mobile
+            showCustomKeypad(true); 
+
             console.log("Número Secreto: ", targetNumber); // Para depuração
         }
 
@@ -608,12 +703,17 @@
             // Garante que o valor é um número inteiro
             const guess = parseInt(guessInput.value);
 
-            if (isNaN(guess) || guess < 1 || guess > 100) {
+            if (!validateGuessInput() || isNaN(guess) || guess < 1 || guess > 100) {
                 guessMessage.textContent = 'Por favor, insira um número válido entre 1 e 100.';
                 guessMessage.className = 'text-xl font-semibold text-red-500 mb-4';
                 guessInput.value = '';
+                // Mantém o teclado customizado aberto
+                showCustomKeypad(true);
                 return;
             }
+
+            // Esconde o teclado customizado ao submeter o palpite
+            showCustomKeypad(false);
 
             guessAttempts++;
             attemptsCounter.textContent = `Tentativas: ${guessAttempts}`;
@@ -637,7 +737,7 @@
             }
             
             guessInput.value = ''; // Limpa o input após o chute
-            guessInput.focus();
+            // Não foca o input para evitar problemas de layout
         }
 
 
@@ -647,6 +747,14 @@
         window.onload = function() {
             initFirebase();
             setGameMode('reaction'); // Define o modo inicial
+            
+            // Adiciona um listener global para fechar o teclado customizado quando o foco sai do input
+            document.addEventListener('touchstart', (e) => {
+                // Fechar o teclado customizado se o toque não for no input nem no próprio teclado
+                if (!document.getElementById('guess-input').contains(e.target) && !document.getElementById('custom-keypad').contains(e.target) && window.innerWidth < 640) {
+                    showCustomKeypad(false);
+                }
+            });
         }
     </script>
 </body>
