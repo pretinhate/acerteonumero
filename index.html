@@ -298,7 +298,7 @@
             const leaderboardCollection = collection(db, LEADERBOARD_COLLECTION_PATH);
             
             // Consulta: 10 melhores scores (menor tempo é melhor), ordenados por tempo
-            // Agora, como a coleção só tem o melhor score de cada user, o ranking fica correto.
+            // Esta consulta pode retornar duplicatas se houver dados antigos no Firestore.
             const q = query(leaderboardCollection, orderBy("time_ms"), limit(10));
 
             // onSnapshot: Atualiza o placar em tempo real
@@ -310,9 +310,25 @@
                     leaderboardList.innerHTML = '<div class="text-gray-500 italic">Nenhum recorde ainda. Seja o primeiro!</div>';
                     return;
                 }
+                
+                // 1. Processar e filtrar os scores para garantir apenas a melhor pontuação por userId
+                // Como a query já ordena pelo menor tempo, o primeiro score que encontramos para um userId será o melhor.
+                const uniqueScores = [];
+                const seenUserIds = new Set();
 
-                snapshot.forEach((doc, index) => {
+                snapshot.forEach(doc => {
                     const data = doc.data();
+                    
+                    // Adiciona o score à lista apenas se o userId ainda não foi visto
+                    if (!seenUserIds.has(data.userId)) {
+                        seenUserIds.add(data.userId);
+                        uniqueScores.push(data);
+                    }
+                });
+
+
+                // 2. Exibir a lista filtrada
+                uniqueScores.forEach((data, index) => {
                     const rank = index + 1;
                     const isCurrentUser = data.userId === userId;
                     
