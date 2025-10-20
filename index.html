@@ -100,7 +100,8 @@
             <p class="text-gray-600 mb-6">Você precisa de um apelido para aparecer no placar.</p>
             
             <form id="nickname-form" onsubmit="event.preventDefault(); saveNickname();">
-                <input type="text" id="nickname-input" placeholder="Seu Nickname (ex: RatoVeloz)" maxlength="20"
+                <!-- ALTERAÇÃO AQUI: Mudança de type="text" para type="tel" para forçar o teclado numérico em mobile -->
+                <input type="tel" id="nickname-input" placeholder="Seu Nickname (letras e números)" maxlength="20"
                        class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-4" required>
                 
                 <button type="submit" id="save-nickname-btn"
@@ -298,7 +299,6 @@
             const leaderboardCollection = collection(db, LEADERBOARD_COLLECTION_PATH);
             
             // Consulta: 10 melhores scores (menor tempo é melhor), ordenados por tempo
-            // Esta consulta pode retornar duplicatas se houver dados antigos no Firestore.
             const q = query(leaderboardCollection, orderBy("time_ms"), limit(10));
 
             // onSnapshot: Atualiza o placar em tempo real
@@ -312,7 +312,6 @@
                 }
                 
                 // 1. Processar e filtrar os scores para garantir apenas a melhor pontuação por userId
-                // Como a query já ordena pelo menor tempo, o primeiro score que encontramos para um userId será o melhor.
                 const uniqueScores = [];
                 const seenUserIds = new Set();
 
@@ -357,7 +356,7 @@
             if (!db || !userId) return;
 
             // Define o documento do score usando o próprio userId como ID do documento.
-            // Isso garante que cada usuário terá APENAS UM documento no placar.
+            // Isso garante que cada usuário terá APENHAS UM documento no placar.
             const scoreDocRef = doc(db, LEADERBOARD_COLLECTION_PATH, userId);
 
             try {
