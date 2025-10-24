@@ -3,355 +3,157 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jogos de Habilidade</title>
+    <title>Ranking Único de Melhor Tempo</title>
+    <!-- Carrega Tailwind CSS para estilização rápida e responsiva -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f3f4f6;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            padding: 20px;
-        }
-        .container {
-            max-width: 900px;
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-        .game-area {
-            background-color: #fff;
-            border-radius: 12px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            min-height: 400px;
-        }
-        /* Estilos do Jogo de Reação */
-        .reaction-box {
-            flex-grow: 1;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            font-weight: 800;
-            font-size: 1.5rem;
-            color: #fff;
-            cursor: pointer;
-            transition: background-color 0.1s ease-in-out;
-            user-select: none;
-            padding: 20px;
-            border-radius: 12px;
-        }
-        .reaction-box.ready { background-color: #3b82f6; } 
-        .reaction-box.wait { background-color: #f59e0b; cursor: not-allowed; } 
-        .reaction-box.go { background-color: #10b981; } 
-        .reaction-box.too-soon { background-color: #ef4444; } 
-        .reaction-box.result { background-color: #6366f1; } 
-        
-        /* Estilos do Seletor de Jogo */
-        .game-selector {
-            transition: background-color 0.2s, color 0.2s, transform 0.1s;
-        }
-        .game-selector.active {
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-        .game-selector:not(.active) {
-            background-color: #e5e7eb; /* gray-200 */
-            color: #4b5563; /* gray-600 */
-        }
-
-        /* Estilos do Teclado Customizado */
-        #custom-keypad {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            z-index: 50;
-            background-color: #f3f4f6; /* gray-100 */
-            padding: 1rem;
-            border-top: 4px solid #db2777; /* pink-600 */
-            box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.2);
-        }
-        .keypad-btn {
-            @apply p-4 text-2xl font-bold bg-white rounded-xl shadow-lg hover:bg-gray-200 transition duration-150 active:scale-95;
-        }
-
-        @media (min-width: 640px) {
-            .reaction-box { font-size: 2.5rem; }
-            .container { flex-direction: row; }
-            .game-area { flex: 2; }
-            .leaderboard-container { flex: 1; }
-            /* Esconde o teclado customizado em telas grandes, o input deve ser usado via mouse/teclado normal */
-            #custom-keypad {
-                display: none !important; 
+        /* Define a fonte Inter para toda a aplicação */
+        body { font-family: 'Inter', sans-serif; background-color: #f7f9fb; }
+        .card { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
+        .ranking-item:nth-child(odd) { background-color: #f0f4f8; }
+        .ranking-item:nth-child(even) { background-color: #ffffff; }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#1d4ed8',
+                        secondary: '#93c5fd',
+                    }
+                }
             }
         }
-    </style>
+    </script>
 </head>
-<body>
-    
-    <div class="container">
-        
-        <!-- Controles de Seleção de Jogo -->
-        <div class="w-full flex justify-center gap-4 mb-4">
-            <button id="btn-reaction" class="game-selector active bg-indigo-600 text-white p-3 rounded-xl font-semibold w-1/2 md:w-auto" onclick="setGameMode('reaction')">
-                ⏱ Tempo de Reação
-            </button>
-            <button id="btn-guess" class="game-selector bg-gray-300 text-gray-800 p-3 rounded-xl font-semibold w-1/2 md:w-auto" onclick="setGameMode('guess')">
-                🔢 Adivinhe o Número
-            </button>
-        </div>
+<body class="p-4 md:p-8 min-h-screen flex flex-col items-center">
 
-        <!-- Área do Jogo -->
-        <div class="game-area">
-            
-            <!-- JOGO 1: TEMPO DE REAÇÃO -->
-            <div id="reaction-game" class="flex flex-col flex-grow">
-                <div id="reaction-box" class="reaction-box ready" onclick="handleReactionClick()">
-                    Clique para Começar
+    <!-- Cabeçalho e Informações do Usuário -->
+    <div class="w-full max-w-4xl mb-6 bg-white p-4 rounded-xl card border border-gray-100">
+        <h1 class="text-3xl font-bold text-gray-800 mb-2">Desafio de Tempo e Ranking Único</h1>
+        <p class="text-gray-600 mb-4">Seu objetivo é conseguir o tempo mais baixo. Sua pontuação no ranking só será atualizada se for **melhor** que sua tentativa anterior.</p>
+        <p id="auth-status" class="text-sm font-medium text-primary">Carregando autenticação...</p>
+        <p id="user-id-display" class="text-xs text-gray-500 mt-1 break-words hidden">ID do Usuário: <span id="user-id-value" class="font-mono bg-gray-100 p-1 rounded"></span></p>
+    </div>
+
+    <main class="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <!-- Área do Jogo/Cronômetro -->
+        <div class="bg-white p-6 rounded-xl card border border-gray-100 h-fit">
+            <h2 class="text-2xl font-semibold mb-4 text-gray-700">Seu Desafio</h2>
+
+            <div id="game-area" class="text-center p-8 bg-indigo-50 rounded-lg border-2 border-indigo-200">
+                <p class="text-xl mb-4 font-medium text-gray-600">Tempo Atual:</p>
+                <div id="timer-display" class="text-6xl font-extrabold text-primary mb-6 tabular-nums">0.000</div>
+                <div class="space-y-4">
+                    <button id="start-button" onclick="startGame()" class="w-full py-3 px-6 bg-green-500 text-white font-bold rounded-lg shadow-lg hover:bg-green-600 transition duration-200 disabled:opacity-50">
+                        INICIAR TENTATIVA
+                    </button>
+                    <button id="stop-button" onclick="stopGame()" class="w-full py-3 px-6 bg-red-500 text-white font-bold rounded-lg shadow-lg hover:bg-red-600 transition duration-200 disabled:opacity-50" disabled>
+                        PARAR TENTATIVA
+                    </button>
                 </div>
             </div>
 
-            <!-- JOGO 2: ADIVINHE O NÚMERO (Escondido por padrão) -->
-            <div id="guess-game" class="hidden flex-col flex-grow p-6 items-center justify-center">
-                <h3 class="text-3xl font-bold text-pink-600 mb-6">Adivinhe o Número</h3>
-                
-                <p id="guess-message" class="text-xl font-semibold text-gray-700 mb-4">
-                    Tente acertar o número secreto (1 a 100)!
-                </p>
-                
-                <form id="guess-form" onsubmit="event.preventDefault(); submitGuess();" class="w-full max-w-xs">
-                    <!-- Input agora é readonly e type="text" para impedir o teclado nativo, usando o teclado customizado -->
-                    <input type="text" id="guess-input" placeholder="Seu palpite (1-100)" readonly
-                           class="w-full p-4 border-4 border-pink-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-pink-500 mb-4 text-center text-2xl font-bold" 
-                           onfocus="showCustomKeypad(true)" onblur="validateGuessInput()" required>
-                    
-                    <button type="submit" id="guess-button" class="w-full bg-pink-600 text-white p-3 rounded-xl font-semibold hover:bg-pink-700 transition duration-200 shadow-lg">
-                        Chutar!
-                    </button>
-                </form>
-                <p id="attempts-counter" class="text-base mt-4 text-gray-500">Tentativas: 0</p>
-            </div>
+            <div id="result-message" class="mt-4 p-3 rounded-lg text-center font-medium" style="display: none;"></div>
+            <div id="submission-status" class="mt-4 text-center text-sm text-gray-500" style="display: none;"></div>
         </div>
 
-        <!-- Placar e Status -->
-        <div class="leaderboard-container bg-white p-6 rounded-xl shadow-lg flex flex-col gap-4">
-            <h2 id="leaderboard-title" class="text-2xl font-bold text-gray-800 border-b pb-2">🏆 Placar de Tempo de Reação</h2>
-            
-            <!-- Status de Autenticação -->
-            <div id="auth-status" class="text-sm font-semibold p-2 rounded-lg">
-                <span class="text-gray-500">Iniciando Firebase...</span>
+        <!-- Área do Ranking -->
+        <div class="bg-white p-6 rounded-xl card border border-gray-100">
+            <h2 class="text-2xl font-semibold mb-4 text-gray-700">Ranking dos Melhores Tempos (Única Tentativa)</h2>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-1/12">#</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-6/12">Usuário</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-3/12">Melhor Tempo (s)</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-2/12">Seu ID</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leaderboard-body" class="bg-white divide-y divide-gray-200">
+                        <tr><td colspan="4" class="text-center py-4 text-gray-500">Carregando Ranking...</td></tr>
+                    </tbody>
+                </table>
             </div>
+        </div>
+    </main>
 
-            <!-- Placar -->
-            <div id="leaderboard-list" class="flex flex-col gap-3">
-                <div class="text-gray-500 italic">Carregando placar...</div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Custom Keypad (Para forçar apenas números em dispositivos móveis) -->
-    <div id="custom-keypad" class="hidden">
-        <div class="grid grid-cols-3 gap-3 max-w-sm mx-auto">
-            <!-- Linha 1 -->
-            <button type="button" class="keypad-btn" onclick="keypadInput('1')">1</button>
-            <button type="button" class="keypad-btn" onclick="keypadInput('2')">2</button>
-            <button type="button" class="keypad-btn" onclick="keypadInput('3')">3</button>
-            <!-- Linha 2 -->
-            <button type="button" class="keypad-btn" onclick="keypadInput('4')">4</button>
-            <button type="button" class="keypad-btn" onclick="keypadInput('5')">5</button>
-            <button type="button" class="keypad-btn" onclick="keypadInput('6')">6</button>
-            <!-- Linha 3 -->
-            <button type="button" class="keypad-btn" onclick="keypadInput('7')">7</button>
-            <button type="button" class="keypad-btn" onclick="keypadInput('8')">8</button>
-            <button type="button" class="keypad-btn" onclick="keypadInput('9')">9</button>
-            <!-- Linha 4 -->
-            <button type="button" class="keypad-btn bg-red-400 hover:bg-red-500 text-white" onclick="keypadInput('delete')">DEL</button>
-            <button type="button" class="keypad-btn" onclick="keypadInput('0')">0</button>
-            <!-- O botão OK submete o formulário e fecha o teclado -->
-            <button type="button" class="keypad-btn bg-pink-600 hover:bg-pink-700 text-white" onclick="document.getElementById('guess-form').requestSubmit()">OK</button>
-        </div>
-    </div>
-    
-    <!-- Modal para Nickname (Escondido por padrão) -->
-    <div id="nickname-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
-        <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-sm transform transition-all">
-            <h3 class="text-xl font-bold mb-4 text-indigo-600">Primeiro, seu Nickname</h3>
-            <p class="text-gray-600 mb-6">Você precisa de um apelido para aparecer no placar.</p>
-            
-            <form id="nickname-form" onsubmit="event.preventDefault(); saveNickname();">
-                <input type="text" id="nickname-input" placeholder="Seu Nickname (letras, números, etc.)" maxlength="20"
-                       inputmode="text"
-                       class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-4" required>
-                
-                <button type="submit" id="save-nickname-btn"
-                        class="w-full bg-indigo-600 text-white p-3 rounded-lg font-semibold hover:bg-indigo-700 transition duration-200">
-                    Salvar Nickname
-                </button>
-            </form>
-            <p id="nickname-error" class="text-red-500 text-sm mt-3 hidden"></p>
-        </div>
-    </div>
-
-    <!-- Modal de Recorde (Escondido por padrão) -->
-    <div id="score-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
-        <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-sm transform transition-all text-center">
-            <h3 id="score-modal-title" class="text-2xl font-extrabold mb-2 text-green-600">Novo Recorde!</h3>
-            <p id="score-modal-message" class="text-gray-700 mb-6">Parabéns! Seu tempo de **XXms** foi salvo.</p>
-            
-            <button onclick="closeScoreModal()"
-                    class="bg-indigo-500 text-white p-3 rounded-lg font-semibold hover:bg-indigo-600 transition duration-200">
-                Fechar
+    <!-- Modal de Nome de Usuário (Necessário para a primeira submissão) -->
+    <div id="name-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 transition-opacity duration-300 hidden">
+        <div class="bg-white p-6 rounded-xl w-full max-w-sm card">
+            <h3 class="text-xl font-bold mb-4">Escolha seu Nome de Usuário</h3>
+            <p class="text-sm text-gray-600 mb-4">Este nome será exibido no ranking. Você só precisa fazer isso uma vez.</p>
+            <input type="text" id="username-input" maxlength="20" placeholder="Ex: AtletaVeloz" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary">
+            <button onclick="saveUsername()" class="mt-4 w-full py-2 bg-primary text-white font-semibold rounded-lg hover:bg-blue-700 transition duration-200 disabled:opacity-50">
+                Confirmar
             </button>
+            <p id="username-error" class="text-red-500 text-sm mt-2" style="display: none;">O nome de usuário é obrigatório.</p>
         </div>
     </div>
 
+    <!-- FIREBASE SETUP & JAVASCRIPT LOGIC -->
     <script type="module">
-        // Variáveis Globais do Canvas (NÃO DELETAR!)
-        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection, query, limit, getDoc, collectionGroup } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global Firebase variables are injected by the environment
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-        
-        // Importações e Inicialização
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot, collection, query, serverTimestamp, orderBy, limit, getDoc } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
-        
-        // Configuração Firebase
-        let app;
+
         let db;
         let auth;
         let userId = null;
-        let userNickname = null;
+        let username = null;
         let isAuthReady = false;
+        let gameActive = false;
+        let startTime = 0;
+        let timerInterval;
 
-        // =================================================================================
-        // FUNÇÕES PARA FIREBASE E REGRAS DE SEGURANÇA
-        // =================================================================================
+        const LEADERBOARD_COLLECTION_PATH = `/artifacts/${appId}/public/data/leaderboard`;
 
-        // Coleções para o Placar (Dados Públicos/Compartilhados)
-        const REACTION_COLLECTION_NAME = "reaction_leaderboard"; 
-        const GUESS_COLLECTION_NAME = "guess_leaderboard"; 
-        
-        // Retorna a referência do documento do perfil (privado do usuário)
-        const getProfileRef = (db, uid) => {
-            // Caminho: /artifacts/{appId}/users/{userId}/profiles/user_details
-            return doc(db, `artifacts/${appId}/users/${uid}/profiles`, "user_details");
-        };
+        // Elementos do DOM
+        const timerDisplay = document.getElementById('timer-display');
+        const startButton = document.getElementById('start-button');
+        const stopButton = document.getElementById('stop-button');
+        const resultMessage = document.getElementById('result-message');
+        const submissionStatus = document.getElementById('submission-status');
+        const leaderboardBody = document.getElementById('leaderboard-body');
+        const authStatus = document.getElementById('auth-status');
+        const userIdDisplay = document.getElementById('user-id-display');
+        const userIdValue = document.getElementById('user-id-value');
+        const nameModal = document.getElementById('name-modal');
+        const usernameInput = document.getElementById('username-input');
 
-        // Retorna a referência da coleção do placar (público)
-        const getLeaderboardCollectionRef = (db, collectionName) => {
-            // Caminho: /artifacts/{appId}/public/data/${collectionName}
-            return collection(db, `artifacts/${appId}/public/data/${collectionName}`);
-        };
-
-        // Variáveis de Modo de Jogo
-        let currentGameMode = 'reaction'; // 'reaction' ou 'guess'
-
-        // Variáveis do Jogo de Reação
-        const reactionBox = document.getElementById('reaction-box');
-        let reactionStartTime, reactionEndTime;
-        let isWaiting = false;
-        let isGo = false;
-        let timerId;
-        const MIN_WAIT = 1500;
-        const MAX_WAIT = 4000;
-
-        // Variáveis do Jogo de Palpite
-        let targetNumber = 0;
-        let guessAttempts = 0;
-        const guessMessage = document.getElementById('guess-message');
-        const attemptsCounter = document.getElementById('attempts-counter');
-        const guessInput = document.getElementById('guess-input');
-
-        // =================================================================================
-        // FUNÇÕES DE UTILIDADE E UI
-        // =================================================================================
-        
-        function updateAuthStatus(status, colorClass) {
-            const authStatusElement = document.getElementById('auth-status');
-            authStatusElement.textContent = status;
-            authStatusElement.className = `text-sm font-semibold p-2 rounded-lg ${colorClass}`;
-        }
-
-        function showModal(id) {
-            document.getElementById(id).classList.remove('hidden');
-        }
-
-        function hideModal(id) {
-            document.getElementById(id).classList.add('hidden');
-        }
-
-        function setGameMode(mode) {
-            if (currentGameMode === mode) return;
-
-            // Esconde/Mostra as áreas de jogo
-            document.getElementById('reaction-game').classList.add('hidden');
-            document.getElementById('guess-game').classList.add('hidden');
-            document.getElementById('reaction-game').classList.remove('flex-col');
-            document.getElementById('guess-game').classList.remove('flex-col');
-            
-            document.getElementById(`btn-${currentGameMode}`).classList.remove('active', 'bg-indigo-600', 'text-white', 'bg-pink-600');
-            document.getElementById(`btn-${currentGameMode}`).classList.add('bg-gray-300', 'text-gray-800');
-            
-            // Esconde o teclado customizado ao mudar de jogo
-            showCustomKeypad(false);
-
-            currentGameMode = mode;
-
-            document.getElementById(`btn-${mode}`).classList.add('active', `bg-${mode === 'reaction' ? 'indigo' : 'pink'}-600`, 'text-white');
-            document.getElementById(`btn-${mode}`).classList.remove('bg-gray-300', 'text-gray-800');
-
-            document.getElementById(`${mode}-game`).classList.remove('hidden');
-            document.getElementById(`${mode}-game`).classList.add('flex-col');
-
-            // Atualiza Placar e reinicia o jogo
-            if (mode === 'reaction') {
-                document.getElementById('leaderboard-title').textContent = '🏆 Placar de Tempo de Reação';
-                if (isAuthReady) setupLeaderboardListener(REACTION_COLLECTION_NAME, "time_ms", "ms");
-                resetReactionGame();
-            } else { // guess
-                document.getElementById('leaderboard-title').textContent = '🥇 Placar de Adivinhe o Número (Tentativas)';
-                if (isAuthReady) setupLeaderboardListener(GUESS_COLLECTION_NAME, "attempts", " tentativas");
-                startGuessGame();
-            }
-        }
-        
-        // =================================================================================
-        // FUNÇÕES DE AUTENTICAÇÃO E FIRESTORE (INICIALIZAÇÃO)
-        // =================================================================================
-
-        async function initFirebase() {
-            
-            if (!firebaseConfig.apiKey) {
-                updateAuthStatus("Erro: Configuração do Firebase ausente.", "bg-red-100 text-red-600");
-                return;
-            }
-
+        // Inicializa o Firebase e a Autenticação
+        function initFirebase() {
             try {
-                app = initializeApp(firebaseConfig);
-                auth = getAuth(app);
+                const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
+                auth = getAuth(app);
+                // setLogLevel('debug'); // Descomente para ver logs de debug do Firestore
 
                 onAuthStateChanged(auth, async (user) => {
                     if (user) {
                         userId = user.uid;
-                        // Exibir apenas o Nickname no status para melhor UX, mantendo o userId para debug
-                        updateAuthStatus(`Logado como: ${user.uid.substring(0, 8)}...`, "bg-green-100 text-green-600");
+                        authStatus.textContent = "Status: Autenticado e pronto para usar.";
+                        userIdDisplay.classList.remove('hidden');
+                        userIdValue.textContent = userId;
+
+                        // Tenta buscar o nome de usuário existente
+                        await fetchUserData(userId);
+
                         isAuthReady = true;
-                        await checkUserProfile();
-                        if (userNickname) {
-                           // Inicia o listener do jogo padrão (Tempo de Reação) após a autenticação e nickname
-                           setupLeaderboardListener(REACTION_COLLECTION_NAME, "time_ms", "ms");
+                        // Inicia o listener do ranking
+                        if (db) {
+                            setupLeaderboardListener();
                         }
                     } else {
+                        // Tenta autenticar
                         if (initialAuthToken) {
                             await signInWithCustomToken(auth, initialAuthToken);
                         } else {
@@ -359,403 +161,248 @@
                         }
                     }
                 });
-
             } catch (error) {
-                console.error("Erro ao iniciar Firebase:", error);
-                updateAuthStatus(`Erro de Inicialização: ${error.message}`, "bg-red-100 text-red-600");
+                console.error("Erro ao inicializar Firebase:", error);
+                authStatus.textContent = `Erro de Configuração: ${error.message}`;
             }
         }
 
-        // =================================================================================
-        // FUNÇÕES DE PERFIL (NICKNAME)
-        // =================================================================================
-        
-        async function checkUserProfile() {
-            if (!userId) return;
-            
-            const profileRef = getProfileRef(db, userId);
-            
+        // Função para buscar o nome de usuário no Firestore (coleção privada)
+        async function fetchUserData(uid) {
+            const userDocRef = doc(db, `/artifacts/${appId}/users/${uid}/profile`, 'info');
             try {
-                const profileSnap = await getDoc(profileRef);
-                
-                if (profileSnap.exists() && profileSnap.data().nickname) {
-                    userNickname = profileSnap.data().nickname;
-                    // Exibir apenas o Nickname no status para melhor UX, mantendo o userId para debug
-                    updateAuthStatus(`Logado: ${userNickname} (ID: ${userId.substring(0, 8)}...)`, "bg-green-100 text-green-600"); 
-                    hideModal('nickname-modal');
-                } else {
-                    userNickname = null;
-                    showModal('nickname-modal');
-                }
-            } catch (error) {
-                console.error("Erro ao checar perfil:", error);
-                // Não atualizar o status para não sobrescrever o ID de autenticação se for um erro de permissão
-            }
-        }
-
-        async function saveNickname() {
-            if (!userId || !db) return;
-
-            const input = document.getElementById('nickname-input');
-            const nickname = input.value.trim();
-            const errorElement = document.getElementById('nickname-error');
-            const button = document.getElementById('save-nickname-btn');
-
-            if (!nickname) return;
-
-            button.textContent = "Salvando...";
-            button.disabled = true;
-            errorElement.classList.add('hidden');
-            
-            const profileRef = getProfileRef(db, userId);
-
-            try {
-                await setDoc(profileRef, {
-                    nickname: nickname,
-                    updatedAt: serverTimestamp()
-                }, { merge: true });
-
-                userNickname = nickname;
-                updateAuthStatus(`Logado: ${userNickname} (ID: ${userId.substring(0, 8)}...)`, "bg-green-100 text-green-600");
-                
-                hideModal('nickname-modal');
-                // Inicia o listener do placar para o modo atual
-                const collectionName = currentGameMode === 'reaction' ? REACTION_COLLECTION_NAME : GUESS_COLLECTION_NAME;
-                const field = currentGameMode === 'reaction' ? "time_ms" : "attempts";
-                const unit = currentGameMode === 'reaction' ? "ms" : " tentativas";
-                setupLeaderboardListener(collectionName, field, unit);
-
-            } catch (error) {
-                console.error("Erro ao salvar nickname:", error);
-                errorElement.textContent = `Falha ao salvar. Tente novamente. Erro: ${error.message}`;
-                errorElement.classList.remove('hidden');
-            } finally {
-                button.textContent = "Salvar Nickname";
-                button.disabled = false;
-            }
-        }
-
-        // =================================================================================
-        // FUNÇÕES DE PLACAR (LEADERBOARD) - UNIFICADAS
-        // =================================================================================
-        
-        let unsubscribeLeaderboard = null;
-
-        function setupLeaderboardListener(collectionName, orderByField, unit) {
-            if (!db) return;
-            
-            // Cancela o listener anterior se houver
-            if (unsubscribeLeaderboard) {
-                unsubscribeLeaderboard();
-                unsubscribeLeaderboard = null;
-            }
-
-            const leaderboardCollection = getLeaderboardCollectionRef(db, collectionName);
-            
-            // Usamos orderBy("asc") para ambos os placares, pois queremos o MENOR tempo (reação) 
-            // e o MENOR número de tentativas (adivinhe o número).
-            const q = query(leaderboardCollection, orderBy(orderByField, "asc"), limit(50));
-
-            // onSnapshot: Atualiza o placar em tempo real
-            unsubscribeLeaderboard = onSnapshot(q, (snapshot) => {
-                const leaderboardList = document.getElementById('leaderboard-list');
-                leaderboardList.innerHTML = '';
-                
-                if (snapshot.empty) {
-                    leaderboardList.innerHTML = '<div class="text-gray-500 italic">Nenhum recorde ainda. Seja o primeiro!</div>';
-                    return;
-                }
-                
-                const uniqueScores = [];
-                const seenUserIds = new Set();
-
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    
-                    // Garante unicidade no placar por userId, pegando apenas o melhor resultado
-                    if (!seenUserIds.has(data.userId)) {
-                        seenUserIds.add(data.userId);
-                        uniqueScores.push(data);
-                    }
-                });
-
-                // Exibir APENAS a lista dos 10 melhores únicos
-                uniqueScores.slice(0, 10).forEach((data, index) => { 
-                    const rank = index + 1;
-                    const isCurrentUser = data.userId === userId;
-                    const scoreValue = data[orderByField];
-                    
-                    const listItem = `
-                        <div class="flex justify-between items-center p-3 rounded-lg ${isCurrentUser ? 'bg-indigo-50 border-2 border-indigo-400' : 'bg-gray-50'}">
-                            <span class="font-bold text-gray-700">${rank}. ${data.nickname}</span>
-                            <span class="font-extrabold ${isCurrentUser ? 'text-indigo-600' : 'text-gray-800'}">${scoreValue}${unit}</span>
-                        </div>
-                    `;
-                    leaderboardList.innerHTML += listItem;
-                });
-            }, (error) => {
-                console.error(`Erro ao conectar o Placar (${collectionName}):`, error);
-                document.getElementById('leaderboard-list').innerHTML = `
-                    <div class="text-red-500 font-bold">Erro ao conectar o Placar.</div>
-                `;
-            });
-        }
-
-        async function saveScore(scoreValue, collectionName, scoreField, comparisonType) {
-            if (!userNickname) {
-                showModal('nickname-modal');
-                return;
-            }
-            if (!db || !userId) return;
-
-            const leaderboardCollectionRef = getLeaderboardCollectionRef(db, collectionName);
-            // O documento tem o ID do usuário para garantir que cada usuário só tenha um recorde
-            const scoreDocRef = doc(leaderboardCollectionRef, userId);
-
-            try {
-                const docSnap = await getDoc(scoreDocRef);
-                
-                let shouldSave = true;
-                let currentBestScore = null;
-                
+                const docSnap = await getDoc(userDocRef);
                 if (docSnap.exists()) {
-                    currentBestScore = docSnap.data()[scoreField];
-                    
-                    // Lógica para garantir que só salva se for MELHOR (menor valor)
-                    if (comparisonType === 'min') {
-                        if (scoreValue >= currentBestScore) {
-                            shouldSave = false;
-                        }
-                    } 
-                }
-                
-                // Variáveis para o Modal
-                const title = document.getElementById('score-modal-title');
-                const message = document.getElementById('score-modal-message');
-                const unit = collectionName === REACTION_COLLECTION_NAME ? 'ms' : ' tentativas';
-
-                if (shouldSave) {
-                    await setDoc(scoreDocRef, {
-                        [scoreField]: scoreValue, 
-                        nickname: userNickname,
-                        userId: userId,
-                        updatedAt: serverTimestamp()
-                    });
-
-                    title.textContent = docSnap.exists() ? "NOVO RECORD!" : "Recorde Registrado!";
-                    title.className = "text-2xl font-extrabold mb-2 text-green-600";
-                    message.innerHTML = `Seu novo melhor tempo de **${scoreValue}${unit}** foi salvo no placar!`;
-
+                    const data = docSnap.data();
+                    username = data.username;
+                    // Se o nome de usuário for encontrado, não mostra o modal
                 } else {
-                    title.textContent = "Tempo Não Registrado";
-                    title.className = "text-2xl font-extrabold mb-2 text-yellow-600";
-                    message.innerHTML = `Seu resultado de **${scoreValue}${unit}** não superou seu recorde atual de **${currentBestScore}${unit}**. Tente de novo!`;
+                    // Se o nome de usuário não existir, mostra o modal para o usuário escolher
+                    nameModal.classList.remove('hidden');
                 }
-
-                showModal('score-modal');
-                setTimeout(closeScoreModal, 3000);
-
             } catch (error) {
-                console.error("Erro ao salvar o score:", error);
-                
-                const title = document.getElementById('score-modal-title');
-                const message = document.getElementById('score-modal-message');
-                title.textContent = "Falha ao Salvar";
-                title.className = "text-2xl font-extrabold mb-2 text-red-600";
-                message.innerHTML = `Não foi possível salvar seu recorde. Erro: <span class="text-sm text-red-500">${error.message}</span>`;
-                showModal('score-modal');
-                setTimeout(closeScoreModal, 3000);
-            }
-        }
-        
-        function closeScoreModal() {
-            hideModal('score-modal');
-        }
-
-        // =================================================================================
-        // LÓGICA DO JOGO DE REAÇÃO
-        // =================================================================================
-
-        function resetReactionGame() {
-            clearTimeout(timerId);
-            isWaiting = false;
-            isGo = false;
-            reactionBox.className = 'reaction-box ready';
-            reactionBox.textContent = 'Clique para Começar';
-        }
-
-        function startReactionGame() {
-            if (isWaiting || isGo) return; 
-
-            reactionBox.className = 'reaction-box wait';
-            reactionBox.textContent = 'Aguarde o VERDE...';
-            isWaiting = true;
-
-            const randomWait = Math.random() * (MAX_WAIT - MIN_WAIT) + MIN_WAIT;
-            
-            timerId = setTimeout(() => {
-                reactionBox.className = 'reaction-box go';
-                reactionBox.textContent = 'CLIQUE AGORA!';
-                isWaiting = false;
-                isGo = true;
-                reactionStartTime = performance.now();
-            }, randomWait);
-        }
-
-        window.handleReactionClick = function() {
-            if (currentGameMode !== 'reaction') return;
-
-            if (reactionBox.classList.contains('ready')) {
-                startReactionGame();
-            } else if (reactionBox.classList.contains('wait')) {
-                clearTimeout(timerId);
-                reactionBox.className = 'reaction-box too-soon';
-                reactionBox.textContent = 'Muito Cedo! Clique para Tentar Novamente.';
-                isWaiting = false;
-                isGo = false;
-            } else if (reactionBox.classList.contains('go')) {
-                reactionEndTime = performance.now();
-                const reactionTime = Math.round(reactionEndTime - reactionStartTime);
-                
-                reactionBox.className = 'reaction-box result';
-                reactionBox.innerHTML = `Seu Tempo: <strong>${reactionTime} ms</strong>. <br> Clique para Tentar Novamente.`;
-                
-                isWaiting = false;
-                isGo = false;
-                
-                saveScore(reactionTime, REACTION_COLLECTION_NAME, "time_ms", 'min');
-                
-            } else if (reactionBox.classList.contains('too-soon') || reactionBox.classList.contains('result')) {
-                resetReactionGame();
+                console.error("Erro ao buscar dados do usuário:", error);
+                // Em caso de erro, ainda mostra o modal
+                nameModal.classList.remove('hidden');
             }
         }
 
-        // =================================================================================
-        // LÓGICA DO JOGO ADIVINHE O NÚMERO E TECLADO CUSTOMIZADO
-        // =================================================================================
+        // Salva o nome de usuário e fecha o modal
+        window.saveUsername = async function() {
+            const newUsername = usernameInput.value.trim();
+            const usernameError = document.getElementById('username-error');
 
-        // Manipulação do teclado customizado
-        window.showCustomKeypad = function(show) {
-            const keypad = document.getElementById('custom-keypad');
-            // Só mostra o teclado em modo de palpite E em telas pequenas (mobile)
-            if (show && currentGameMode === 'guess' && window.innerWidth < 640) {
-                keypad.classList.remove('hidden');
-                document.getElementById('guess-button').disabled = false;
-            } else {
-                keypad.classList.add('hidden');
+            if (!newUsername) {
+                usernameError.style.display = 'block';
+                return;
             }
-        }
+            usernameError.style.display = 'none';
 
-        window.keypadInput = function(value) {
-            const input = document.getElementById('guess-input');
-            let currentValue = input.value;
-
-            if (value === 'delete') {
-                input.value = currentValue.slice(0, -1);
-            } else {
-                // Impede mais de 3 dígitos (máximo 100)
-                if (currentValue.length < 3) {
-                    input.value += value;
-                }
-            }
-            // Validação visual
-            validateGuessInput();
-            
-            // Re-foca o input para manter o teclado visível
-            input.focus(); 
-        }
-
-        function validateGuessInput() {
-            const input = document.getElementById('guess-input');
-            const guess = parseInt(input.value);
-            
-            // Validação visual: Se o número for maior que 100 OU for 0 (0 não é um palpite válido de 1 a 100)
-            if (guess > 100 || (input.value.length > 0 && guess === 0)) {
-                input.classList.add('border-red-500');
-                input.classList.remove('border-pink-300');
-                return false;
-            } else {
-                input.classList.remove('border-red-500');
-                input.classList.add('border-pink-300');
-                return true;
-            }
-        }
-
-        function startGuessGame() {
-            // Reinicia o estado do jogo
-            targetNumber = Math.floor(Math.random() * 100) + 1; // Número entre 1 e 100
-            guessAttempts = 0;
-            guessMessage.textContent = 'Tente acertar o número secreto (1 a 100)!';
-            attemptsCounter.textContent = 'Tentativas: 0';
-            guessInput.value = '';
-            guessInput.disabled = false;
-            document.getElementById('guess-button').disabled = false;
-            
-            // Tenta mostrar o teclado customizado em mobile
-            showCustomKeypad(true); 
-
-            console.log("Número Secreto: ", targetNumber); // Para depuração
-        }
-
-        window.submitGuess = function() {
-            if (currentGameMode !== 'guess' || guessInput.disabled) return;
-
-            // Garante que o valor é um número inteiro
-            const guess = parseInt(guessInput.value);
-
-            if (!validateGuessInput() || isNaN(guess) || guess < 1 || guess > 100) {
-                guessMessage.textContent = 'Por favor, insira um número válido entre 1 e 100.';
-                guessMessage.className = 'text-xl font-semibold text-red-500 mb-4';
-                guessInput.value = '';
-                // Mantém o teclado customizado aberto
-                showCustomKeypad(true);
+            if (!userId || !db) {
+                showModal('Erro', 'Autenticação não concluída. Tente novamente.');
                 return;
             }
 
-            // Esconde o teclado customizado ao submeter o palpite
-            showCustomKeypad(false);
+            try {
+                // Salva na coleção privada do usuário
+                const userDocRef = doc(db, `/artifacts/${appId}/users/${userId}/profile`, 'info');
+                await setDoc(userDocRef, { username: newUsername, lastUpdate: new Date() }, { merge: true });
 
-            guessAttempts++;
-            attemptsCounter.textContent = `Tentativas: ${guessAttempts}`;
-            guessMessage.className = 'text-xl font-semibold text-gray-700 mb-4';
-            
-            if (guess === targetNumber) {
-                guessMessage.textContent = `🎉 Parabéns! Você acertou o número ${targetNumber} em ${guessAttempts} tentativas!`;
-                guessMessage.className = 'text-2xl font-extrabold text-green-600 mb-4';
-                guessInput.disabled = true;
-                document.getElementById('guess-button').disabled = true;
-
-                // Salva o score (menor número de tentativas)
-                saveScore(guessAttempts, GUESS_COLLECTION_NAME, "attempts", 'min');
-
-            } else if (guess < targetNumber) {
-                guessMessage.textContent = 'É MAIOR. Tente novamente!';
-                guessMessage.className = 'text-xl font-semibold text-orange-500 mb-4';
-            } else {
-                guessMessage.textContent = 'É MENOR. Tente novamente!';
-                guessMessage.className = 'text-xl font-semibold text-blue-500 mb-4';
+                username = newUsername;
+                nameModal.classList.add('hidden');
+                // Se houver um resultado pendente, tenta submetê-lo
+                if (parseFloat(timerDisplay.textContent) > 0 && !gameActive) {
+                    submitScore(parseFloat(timerDisplay.textContent));
+                }
+            } catch (error) {
+                console.error("Erro ao salvar nome de usuário:", error);
+                showModal('Erro', `Falha ao salvar nome: ${error.message}`);
             }
-            
-            guessInput.value = ''; // Limpa o input após o chute
-            // Não foca o input para evitar problemas de layout
         }
 
+        // --- Lógica do Jogo/Cronômetro ---
 
-        // =================================================================================
-        // INÍCIO DA APLICAÇÃO
-        // =================================================================================
-        window.onload = function() {
-            initFirebase();
-            setGameMode('reaction'); // Define o modo inicial
-            
-            // Adiciona um listener global para fechar o teclado customizado quando o foco sai do input
-            document.addEventListener('touchstart', (e) => {
-                // Fechar o teclado customizado se o toque não for no input nem no próprio teclado
-                if (!document.getElementById('guess-input').contains(e.target) && !document.getElementById('custom-keypad').contains(e.target) && window.innerWidth < 640) {
-                    showCustomKeypad(false);
+        window.startGame = function() {
+            if (!isAuthReady) {
+                resultMessage.textContent = 'Aguarde a autenticação.';
+                resultMessage.className = 'mt-4 p-3 rounded-lg text-center font-medium bg-yellow-100 text-yellow-700';
+                resultMessage.style.display = 'block';
+                return;
+            }
+
+            gameActive = true;
+            startTime = Date.now();
+            timerDisplay.textContent = '0.000';
+            startButton.disabled = true;
+            stopButton.disabled = false;
+            resultMessage.style.display = 'none';
+            submissionStatus.style.display = 'none';
+
+            // Inicia o intervalo do cronômetro
+            timerInterval = setInterval(() => {
+                const elapsedTime = (Date.now() - startTime) / 1000;
+                timerDisplay.textContent = elapsedTime.toFixed(3);
+            }, 10);
+        }
+
+        window.stopGame = function() {
+            if (!gameActive) return;
+
+            clearInterval(timerInterval);
+            const endTime = Date.now();
+            const finalTime = (endTime - startTime) / 1000;
+
+            timerDisplay.textContent = finalTime.toFixed(3);
+
+            gameActive = false;
+            startButton.disabled = false;
+            stopButton.disabled = true;
+
+            resultMessage.textContent = `Seu Tempo: ${finalTime.toFixed(3)} segundos.`;
+            resultMessage.className = 'mt-4 p-3 rounded-lg text-center font-medium bg-blue-100 text-blue-700';
+            resultMessage.style.display = 'block';
+
+            // Submete a pontuação
+            submitScore(finalTime);
+        }
+
+        // --- Lógica de Submissão e Regra Única de Ranking ---
+
+        async function submitScore(time) {
+            if (!userId || !db) {
+                submissionStatus.textContent = 'Erro de submissão: Autenticação pendente.';
+                submissionStatus.className = 'mt-4 text-center text-sm text-red-500';
+                submissionStatus.style.display = 'block';
+                return;
+            }
+
+            if (!username) {
+                submissionStatus.textContent = 'Por favor, defina seu nome de usuário primeiro no pop-up.';
+                submissionStatus.className = 'mt-4 text-center text-sm text-yellow-700';
+                submissionStatus.style.display = 'block';
+                nameModal.classList.remove('hidden');
+                return;
+            }
+
+            submissionStatus.textContent = 'Verificando e submetendo sua pontuação...';
+            submissionStatus.className = 'mt-4 text-center text-sm text-gray-500';
+            submissionStatus.style.display = 'block';
+
+            const userDocRef = doc(db, LEADERBOARD_COLLECTION_PATH, userId);
+
+            try {
+                const docSnap = await getDoc(userDocRef);
+                const newScore = parseFloat(time.toFixed(3));
+                let shouldUpdate = false;
+                let message = '';
+
+                if (docSnap.exists()) {
+                    // Usuário já tem um registro. Verifica se o novo tempo é MELHOR (menor).
+                    const existingData = docSnap.data();
+                    const existingBestTime = existingData.bestTime;
+
+                    if (newScore < existingBestTime) {
+                        shouldUpdate = true;
+                        message = `Parabéns! Seu novo tempo (${newScore}s) é melhor que o seu recorde anterior (${existingBestTime}s). Ranking atualizado!`;
+                    } else {
+                        message = `Seu tempo atual (${newScore}s) não é melhor que seu recorde (${existingBestTime}s). O ranking não foi atualizado.`;
+                    }
+                } else {
+                    // Novo usuário. Cria o registro.
+                    shouldUpdate = true;
+                    message = `Novo recorde estabelecido! Seu tempo (${newScore}s) foi adicionado ao ranking.`;
                 }
+
+                if (shouldUpdate) {
+                    const dataToSave = {
+                        userId: userId,
+                        username: username,
+                        bestTime: newScore,
+                        timestamp: Date.now()
+                    };
+
+                    await setDoc(userDocRef, dataToSave);
+
+                    submissionStatus.textContent = message;
+                    submissionStatus.className = 'mt-4 text-center text-sm text-green-700';
+                } else {
+                    submissionStatus.textContent = message;
+                    submissionStatus.className = 'mt-4 text-center text-sm text-yellow-700';
+                }
+
+            } catch (error) {
+                console.error("Erro ao submeter pontuação:", error);
+                submissionStatus.textContent = `Erro: Falha ao comunicar com o ranking. ${error.message}`;
+                submissionStatus.className = 'mt-4 text-center text-sm text-red-500';
+            }
+        }
+
+        // --- Lógica do Ranking em Tempo Real (onSnapshot) ---
+
+        function setupLeaderboardListener() {
+            const rankingRef = collection(db, LEADERBOARD_COLLECTION_PATH);
+            const q = query(rankingRef); // Sem orderBy para evitar a necessidade de índice composto, faremos a ordenação no cliente.
+
+            onSnapshot(q, (snapshot) => {
+                const scores = [];
+                snapshot.forEach((doc) => {
+                    scores.push(doc.data());
+                });
+
+                // Ordena os scores no cliente pelo bestTime (menor tempo é melhor)
+                scores.sort((a, b) => a.bestTime - b.bestTime);
+
+                renderLeaderboard(scores);
+            }, (error) => {
+                console.error("Erro ao ouvir o ranking:", error);
+                leaderboardBody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-red-500">Erro ao carregar o ranking: ${error.message}</td></tr>`;
             });
         }
+
+        function renderLeaderboard(scores) {
+            leaderboardBody.innerHTML = '';
+            if (scores.length === 0) {
+                leaderboardBody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-gray-500">Nenhum tempo submetido ainda. Seja o primeiro!</td></tr>`;
+                return;
+            }
+
+            scores.forEach((score, index) => {
+                const isCurrentUser = score.userId === userId;
+                const rowClass = isCurrentUser ? 'bg-indigo-100 font-bold text-indigo-800' : 'text-gray-700';
+                const row = document.createElement('tr');
+                row.className = `ranking-item ${rowClass}`;
+                row.innerHTML = `
+                    <td class="px-3 py-3 whitespace-nowrap text-sm text-center">${index + 1}</td>
+                    <td class="px-6 py-3 whitespace-nowrap text-sm font-medium">${score.username || 'Usuário Anônimo'}</td>
+                    <td class="px-6 py-3 whitespace-nowrap text-sm tabular-nums">${score.bestTime.toFixed(3)}</td>
+                    <td class="px-6 py-3 whitespace-nowrap text-xs truncate">${score.userId.substring(0, 8)}...</td>
+                `;
+                leaderboardBody.appendChild(row);
+            });
+        }
+
+        // --- Inicialização ---
+
+        // Função simples de modal (substitui alert)
+        function showModal(title, message) {
+            const existingModal = document.getElementById('simple-alert-modal');
+            if (existingModal) existingModal.remove();
+
+            const modalHtml = `
+                <div id="simple-alert-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]">
+                    <div class="bg-white p-6 rounded-lg shadow-2xl w-full max-w-sm">
+                        <h3 class="text-xl font-bold mb-3 text-gray-800">${title}</h3>
+                        <p class="text-gray-600 mb-4">${message}</p>
+                        <button onclick="document.getElementById('simple-alert-modal').remove()" class="w-full py-2 bg-primary text-white font-semibold rounded-lg hover:bg-blue-700">OK</button>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        }
+        window.showModal = showModal; // Expõe para uso no HTML
+
+        window.onload = initFirebase;
+
     </script>
 </body>
 </html>
