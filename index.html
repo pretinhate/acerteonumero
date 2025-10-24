@@ -305,7 +305,8 @@
                         shouldUpdate = true;
                         message = `Parabéns! Seu novo tempo (${newScore}s) é melhor que o seu recorde anterior (${existingBestTime}s). Ranking atualizado!`;
                     } else {
-                        message = `Seu tempo atual (${newScore}s) não é melhor que seu recorde (${existingBestTime}s). O ranking não foi atualizado.`;
+                        // --- EDITADO: Mensagem mais clara de registro único ---
+                        message = `Seu tempo atual (${newScore}s) não é melhor que seu recorde (**${existingBestTime}s**). O registro no ranking é único e não foi atualizado.`;
                     }
                 } else {
                     // Novo usuário. Cria o registro.
@@ -351,6 +352,9 @@
 
                 // Ordena os scores no cliente pelo bestTime (menor tempo é melhor)
                 scores.sort((a, b) => a.bestTime - b.bestTime);
+                
+                // --- DEBUG: Loga os scores para verificar IDs únicos ---
+                console.log("Ranking de Scores (Unicos por UserId):", scores.map(s => ({ userId: s.userId, bestTime: s.bestTime })));
 
                 renderLeaderboard(scores);
             }, (error) => {
