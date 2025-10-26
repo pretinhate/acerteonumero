@@ -3,602 +3,153 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ranking Único de Melhor Tempo</title>
-    <!-- Carrega Tailwind CSS para estilização rápida e responsiva -->
+    <title>Seletor de Bandeiras</title>
+    <!-- Inclui Tailwind CSS para estilização rápida e responsiva -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Define a fonte Inter para toda a aplicação */
-        body { font-family: 'Inter', sans-serif; background-color: #f7f9fb; }
-        .card { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
-        .ranking-item:nth-child(odd) { background-color: #f0f4f8; }
-        .ranking-item:nth-child(even) { background-color: #ffffff; }
+        /* Define a fonte Inter (padrão) e um fundo escuro */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1f2937; /* Cor de fundo escura */
+            color: #f3f4f6; /* Texto claro */
+        }
+        /* Estilos personalizados para o contêiner principal */
+        .card-container {
+            min-height: 100vh;
+        }
     </style>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '#1d4ed8',
-                        secondary: '#93c5fd',
-                    }
-                }
-            }
-        }
-    </script>
 </head>
-<body class="p-4 md:p-8 min-h-screen flex flex-col items-center">
+<body>
 
-    <!-- Cabeçalho e Informações do Usuário -->
-    <div class="w-full max-w-4xl mb-6 bg-white p-4 rounded-xl card border border-gray-100">
-        <h1 class="text-3xl font-bold text-gray-800 mb-2">Desafio de Tempo e Ranking Único</h1>
-        <p class="text-gray-600 mb-4">Seu objetivo é conseguir o tempo mais baixo. Sua pontuação no ranking só será atualizada se for **melhor** que sua tentativa anterior.</p>
-        <p id="auth-status" class="text-sm font-medium text-primary">Carregando autenticação...</p>
-        <p id="user-id-display" class="text-xs text-gray-500 mt-1 break-words hidden">ID do Usuário: <span id="user-id-value" class="font-mono bg-gray-100 p-1 rounded"></span></p>
-    </div>
+    <div class="card-container flex flex-col items-center justify-center p-4">
 
-    <main class="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Título Principal -->
+        <h1 class="text-4xl font-extrabold mb-8 text-indigo-400 text-center">
+            Selecione um País
+        </h1>
 
-        <!-- Área do Jogo/Cronômetro -->
-        <div class="bg-white p-6 rounded-xl card border border-gray-100 h-fit">
-            <h2 class="text-2xl font-semibold mb-4 text-gray-700">Seu Desafio</h2>
+        <!-- Cartão de Seleção -->
+        <div class="w-full max-w-sm bg-gray-800 p-6 rounded-xl shadow-2xl border border-gray-700 transition duration-300 hover:shadow-indigo-500/30">
 
-            <!-- Exibição do Recorde Pessoal/Perfil -->
-            <div id="user-record-display" class="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200 flex items-center space-x-4">
-                <img id="profile-image-display" src="https://placehold.co/48x48/cccccc/333333?text=P" alt="" class="w-12 h-12 rounded-full border-2 border-blue-400 object-cover">
-                <div>
-                    <p class="text-sm font-semibold text-blue-700 mb-1">Seu Nome: <span id="profile-username" class="font-bold text-blue-800">Carregando...</span></p>
-                    <p class="text-lg font-bold text-blue-800">Seu Recorde: <span id="user-best-time-value" class="tabular-nums">--.--</span>s</p>
-                    <div id="email-status-display" class="mt-1 text-sm font-medium"></div>
-                </div>
-            </div>
+            <!-- Dropdown de Países -->
+            <label for="country-select" class="block text-lg font-medium mb-3 text-gray-300">
+                Escolha o país:
+            </label>
+            <select id="country-select" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white appearance-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition duration-150">
+                <!-- As opções serão preenchidas via JavaScript -->
+            </select>
 
-            <div id="game-area" class="text-center p-8 bg-indigo-50 rounded-lg border-2 border-indigo-200">
-                <p class="text-xl mb-4 font-medium text-gray-600">Tempo Atual:</p>
-                <div id="timer-display" class="text-6xl font-extrabold text-primary mb-6 tabular-nums">0.000</div>
-                <div class="space-y-4">
-                    <button id="start-button" onclick="startGame()" class="w-full py-3 px-6 bg-green-500 text-white font-bold rounded-lg shadow-lg hover:bg-green-600 transition duration-200 disabled:opacity-50" disabled>
-                        INICIAR TENTATIVA
-                    </button>
-                    <p id="start-blocker-message" class="text-red-500 text-sm font-semibold">Preencha seu perfil e verifique o e-mail para jogar.</p>
-                    <button id="stop-button" onclick="stopGame()" class="w-full py-3 px-6 bg-red-500 text-white font-bold rounded-lg shadow-lg hover:bg-red-600 transition duration-200 disabled:opacity-50" disabled>
-                        PARAR TENTATIVA
-                    </button>
-                </div>
-            </div>
-
-            <div id="result-message" class="mt-4 p-3 rounded-lg text-center font-medium" style="display: none;"></div>
-            <div id="submission-status" class="mt-4 text-center text-sm text-gray-500" style="display: none;"></div>
         </div>
 
-        <!-- Área do Ranking -->
-        <div class="bg-white p-6 rounded-xl card border border-gray-100">
-            <h2 class="text-2xl font-semibold mb-4 text-gray-700">Ranking dos Melhores Tempos (Única Tentativa)</h2>
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-1/12">#</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-1/12">Foto</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-5/12">Usuário</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-3/12">Melhor Tempo (s)</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-2/12">Seu ID</th>
-                        </tr>
-                    </thead>
-                    <tbody id="leaderboard-body" class="bg-white divide-y divide-gray-200">
-                        <tr><td colspan="5" class="text-center py-4 text-gray-500">Carregando Ranking...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </main>
-
-    <!-- MODAL DE CONFIGURAÇÃO DE PERFIL (Nome + E-mail + Foto LOCAL) -->
-    <div id="profile-setup-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 transition-opacity duration-300 hidden">
-        <div class="bg-white p-6 rounded-xl w-full max-w-sm card">
-            <h3 class="text-xl font-bold mb-4 text-gray-800">Complete seu Perfil</h3>
-            <p class="text-sm text-gray-600 mb-4">O nome será exibido, o e-mail é para validação, e a foto é opcional (deve ser um arquivo pequeno).</p>
-            
-            <label for="username-input" class="block text-sm font-medium text-gray-700 mb-1">Nome de Usuário:</label>
-            <input type="text" id="username-input" maxlength="20" placeholder="Ex: AtletaVeloz" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary mb-3">
-
-            <label for="email-input" class="block text-sm font-medium text-gray-700 mb-1">Seu E-mail:</label>
-            <input type="email" id="email-input" placeholder="seu@email.com" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary mb-3">
-            
-            <label for="profile-image-file-input" class="block text-sm font-medium text-gray-700 mb-1">Selecione uma Foto (Máx 250 KB):</label>
-            <input type="file" id="profile-image-file-input" accept="image/*" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary">
-            <p class="text-xs text-red-500 mt-1 mb-3">Aviso: A imagem será armazenada no banco de dados. Mantenha o arquivo pequeno (Max 250 KB) para evitar erros de limite de tamanho.</p>
-
-            <button onclick="saveProfile()" class="mt-4 w-full py-2 bg-primary text-white font-semibold rounded-lg hover:bg-blue-700 transition duration-200 disabled:opacity-50">
-                Confirmar Perfil
-            </button>
-            <p id="profile-error" class="text-red-500 text-sm mt-2" style="display: none;">O Nome de Usuário e o E-mail são obrigatórios.</p>
-        </div>
-    </div>
-    
-    <!-- MODAL DE CONFIRMAÇÃO DE E-MAIL (Bloqueio) -->
-    <div id="verification-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 transition-opacity duration-300 hidden">
-        <div class="bg-white p-6 rounded-xl w-full max-w-sm card text-center">
-            <h3 class="text-2xl font-bold mb-3 text-red-600">Verificação Pendente!</h3>
-            <p class="text-gray-700 mb-4">Para iniciar o desafio, você precisa confirmar seu e-mail (<span id="unverified-email" class="font-semibold"></span>).</p>
-            <p class="text-sm text-gray-600 mb-6">Em uma aplicação real, um e-mail de verificação seria enviado. Por favor, clique no botão abaixo para simular a conclusão da verificação e desbloquear o jogo.</p>
-            
-            <button onclick="confirmEmailVerification()" class="w-full py-3 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600 transition duration-200">
-                CONFIRMAR VERIFICAÇÃO (Simulação)
-            </button>
-            <p id="verification-error" class="text-red-500 text-sm mt-2" style="display: none;"></p>
+        <!-- Área de Exibição da Bandeira -->
+        <div id="flag-display" class="mt-8 p-6 bg-gray-800 rounded-xl shadow-xl border border-gray-700 w-full max-w-sm text-center transform transition duration-500 ease-in-out scale-0 opacity-0">
+            <p id="country-name" class="text-2xl font-semibold mb-4 text-white">
+                Selecione um país acima para ver a bandeira.
+            </p>
+            <!-- A imagem da bandeira será carregada aqui -->
+            <img id="flag-image" src="" alt="Bandeira Nacional" class="w-40 h-30 object-contain mx-auto rounded-md border border-gray-600 shadow-lg" style="min-height: 120px;">
+            <p id="error-message" class="text-red-400 mt-2 hidden">Ocorreu um erro ao carregar a bandeira.</p>
         </div>
     </div>
 
+    <script>
+        // Dados dos países (Nome em Português e Código ISO 3166-1 alpha-2)
+        const countries = [
+            { name: "Selecione...", code: "" },
+            { name: "Brasil", code: "br" },
+            { name: "Portugal", code: "pt" },
+            { name: "Estados Unidos", code: "us" },
+            { name: "Espanha", code: "es" },
+            { name: "França", code: "fr" },
+            { name: "Japão", code: "jp" },
+            { name: "Argentina", code: "ar" },
+            { name: "Alemanha", code: "de" },
+            { name: "China", code: "cn" },
+            { name: "Canadá", code: "ca" },
+            { name: "México", code: "mx" },
+            { name: "Itália", code: "it" },
+            { name: "Reino Unido", code: "gb" },
+            { name: "África do Sul", code: "za" },
+        ];
 
-    <!-- FIREBASE SETUP & JAVASCRIPT LOGIC -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot, collection, query, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        
-        // Variáveis globais Firebase injetadas pelo ambiente
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-        
-        // URLs Padrão para imagem (serão usadas como fallback)
-        const DEFAULT_IMAGE_URL = "https://placehold.co/48x48/cccccc/333333?text=P";
-        const DEFAULT_RANKING_IMG = "https://placehold.co/32x32/eeeeee/333333?text=P";
-        const MAX_IMAGE_SIZE_BYTES = 250 * 1024; // 250 KB limite para Base64
+        // Elementos DOM
+        const selectElement = document.getElementById('country-select');
+        const flagImage = document.getElementById('flag-image');
+        const countryNameDisplay = document.getElementById('country-name');
+        const flagDisplayContainer = document.getElementById('flag-display');
+        const errorMessage = document.getElementById('error-message');
 
+        // URL base para a API de bandeiras
+        // Usamos uma resolução comum (160x120) para o tamanho da bandeira.
+        const FLAG_BASE_URL = "https://flagcdn.com/w160/";
 
-        let db;
-        let auth;
-        let userId = null;
-        let profile = {
-            username: null,
-            email: null,
-            isEmailVerified: false,
-            profileImageUrl: null, // Agora armazena Base64 Data URL
-        };
-        let isAuthReady = false;
-        let gameActive = false;
-        let startTime = 0;
-        let timerInterval;
-
-        const LEADERBOARD_COLLECTION_PATH = `/artifacts/${appId}/public/data/leaderboard`;
-
-        // Elementos do DOM
-        const timerDisplay = document.getElementById('timer-display');
-        const startButton = document.getElementById('start-button');
-        const stopButton = document.getElementById('stop-button');
-        const resultMessage = document.getElementById('result-message');
-        const submissionStatus = document.getElementById('submission-status');
-        const leaderboardBody = document.getElementById('leaderboard-body');
-        const authStatus = document.getElementById('auth-status');
-        const userIdDisplay = document.getElementById('user-id-display');
-        const userIdValue = document.getElementById('user-id-value');
-        
-        // Elementos do Perfil e Modais
-        const profileUsernameEl = document.getElementById('profile-username');
-        const userBestTimeValueEl = document.getElementById('user-best-time-value');
-        const emailStatusDisplayEl = document.getElementById('email-status-display');
-        const profileSetupModal = document.getElementById('profile-setup-modal');
-        const usernameInput = document.getElementById('username-input');
-        const emailInput = document.getElementById('email-input');
-        const profileImageFileInput = document.getElementById('profile-image-file-input'); // NOVO INPUT: FILE
-        const profileErrorEl = document.getElementById('profile-error');
-        const verificationModal = document.getElementById('verification-modal');
-        const unverifiedEmailEl = document.getElementById('unverified-email');
-        const startBlockerMessageEl = document.getElementById('start-blocker-message');
-        const profileImageDisplayEl = document.getElementById('profile-image-display'); 
-
-
-        // Inicializa o Firebase e a Autenticação
-        function initFirebase() {
-            try {
-                const app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
-
-                onAuthStateChanged(auth, async (user) => {
-                    if (user) {
-                        userId = user.uid;
-                        authStatus.textContent = "Status: Autenticado e pronto para usar.";
-                        userIdDisplay.classList.remove('hidden');
-                        userIdValue.textContent = userId;
-
-                        await fetchUserData(userId);
-
-                        isAuthReady = true;
-                        if (db) {
-                            setupLeaderboardListener();
-                        }
-                    } else {
-                        // Tenta autenticar
-                        if (initialAuthToken) {
-                            await signInWithCustomToken(auth, initialAuthToken);
-                        } else {
-                            await signInAnonymously(auth);
-                        }
-                    }
-                });
-            } catch (error) {
-                console.error("Erro ao inicializar Firebase:", error);
-                authStatus.textContent = `Erro de Configuração: ${error.message}`;
-            }
-        }
-
-        // Converte o objeto File para Base64 Data URL
-        function fileToBase64(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = (error) => reject(error);
+        /**
+         * 1. Inicializa o Dropdown (Select)
+         */
+        function initializeSelect() {
+            countries.forEach(country => {
+                const option = document.createElement('option');
+                option.value = country.code;
+                option.textContent = country.name;
+                selectElement.appendChild(option);
             });
         }
 
-
-        // Função para buscar o perfil completo do usuário
-        async function fetchUserData(uid) {
-            const userDocRef = doc(db, `/artifacts/${appId}/users/${uid}/profile`, 'info');
-            try {
-                const docSnap = await getDoc(userDocRef);
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    profile.username = data.username || null;
-                    profile.email = data.email || null;
-                    profile.isEmailVerified = data.isEmailVerified === true; 
-                    profile.profileImageUrl = data.profileImageUrl || null; 
-                }
-                
-                updateProfileUI();
-
-            } catch (error) {
-                console.error("Erro ao buscar dados do usuário:", error);
-            }
-            checkGameAccess();
-        }
-
-        // Atualiza a UI com o status do perfil
-        function updateProfileUI() {
-            profileUsernameEl.textContent = profile.username || 'Defina seu nome!';
-
-            // Atualiza a imagem de perfil. Se tiver Base64, usa. Se não, usa fallback URL.
-            profileImageDisplayEl.src = profile.profileImageUrl || DEFAULT_IMAGE_URL;
-            // Se for uma URL e falhar (ex: imagem deletada), usa o placeholder.
-            if (!profile.profileImageUrl || profile.profileImageUrl.startsWith('http')) {
-                 profileImageDisplayEl.onerror = () => { profileImageDisplayEl.src = DEFAULT_IMAGE_URL; };
-            }
-
-            if (profile.isEmailVerified) {
-                emailStatusDisplayEl.innerHTML = `<span class="text-green-600">✓ E-mail (${profile.email}) verificado!</span>`;
-            } else if (profile.email) {
-                 emailStatusDisplayEl.innerHTML = `<span class="text-red-600">✕ E-mail (${profile.email}) **NÃO** verificado.</span>`;
-            } else {
-                emailStatusDisplayEl.innerHTML = `<span class="text-yellow-600">Preencha seu e-mail para verificar.</span>`;
-            }
-        }
-        
-        // Checa se o usuário pode começar a jogar
-        function checkGameAccess() {
-            // Limpa o input file para que não salve o mesmo arquivo a cada abertura de modal
-            if (profileSetupModal.classList.contains('hidden')) {
-                profileImageFileInput.value = ''; 
-            }
-
-            if (!profile.username || !profile.email) {
-                profileSetupModal.classList.remove('hidden');
-                usernameInput.value = profile.username || '';
-                emailInput.value = profile.email || '';
-                startButton.disabled = true;
-                startBlockerMessageEl.textContent = 'Preencha seu perfil e verifique o e-mail para jogar.';
-                startBlockerMessageEl.classList.remove('hidden');
-            } else if (!profile.isEmailVerified) {
-                profileSetupModal.classList.add('hidden');
-                unverifiedEmailEl.textContent = profile.email;
-                verificationModal.classList.remove('hidden');
-                startButton.disabled = true;
-                startBlockerMessageEl.textContent = 'Verificação de e-mail pendente. Clique em "Confirmar Verificação".';
-                startBlockerMessageEl.classList.remove('hidden');
-            } else {
-                profileSetupModal.classList.add('hidden');
-                verificationModal.classList.add('hidden');
-                startButton.disabled = false;
-                startBlockerMessageEl.classList.add('hidden');
-            }
-        }
-
-        // Salva o perfil (Nome, E-mail e Foto LOCAL)
-        window.saveProfile = async function() {
-            const newUsername = usernameInput.value.trim();
-            const newEmail = emailInput.value.trim();
-            const imageFile = profileImageFileInput.files[0];
-            let newImageUrl = profile.profileImageUrl; // Mantém a Base64 atual se nenhum arquivo for selecionado
-
-            if (!newUsername || !newEmail) {
-                profileErrorEl.textContent = 'O Nome de Usuário e o E-mail são obrigatórios.';
-                profileErrorEl.style.display = 'block';
-                return;
-            }
-            profileErrorEl.style.display = 'none';
-
-
-            if (imageFile) {
-                if (imageFile.size > MAX_IMAGE_SIZE_BYTES) {
-                    profileErrorEl.textContent = `A imagem é muito grande. Tamanho máximo: ${MAX_IMAGE_SIZE_BYTES / 1024} KB.`;
-                    profileErrorEl.style.display = 'block';
-                    return;
-                }
-
-                // Converte o arquivo para Base64 Data URL
-                try {
-                    newImageUrl = await fileToBase64(imageFile);
-                    profileImageFileInput.value = ''; // Limpa o input após o processamento
-                } catch (e) {
-                    profileErrorEl.textContent = 'Falha ao processar a imagem. Tente outra foto.';
-                    profileErrorEl.style.display = 'block';
-                    return;
-                }
-            }
-            
-            if (!userId || !db) {
-                showModal('Erro', 'Autenticação não concluída. Tente novamente.');
+        /**
+         * 2. Função para exibir a bandeira
+         * @param {string} code - O código de 2 letras do país (e.g., 'br').
+         * @param {string} name - O nome completo do país (e.g., 'Brasil').
+         */
+        function displayFlag(code, name) {
+            // Se o código estiver vazio (opção "Selecione..."), oculta a área de exibição
+            if (!code) {
+                flagDisplayContainer.classList.add('scale-0', 'opacity-0');
+                countryNameDisplay.textContent = "Selecione um país acima para ver a bandeira.";
+                flagImage.src = ""; // Limpa a imagem
                 return;
             }
 
-            try {
-                // Se o e-mail mudou, a verificação deve ser redefinida
-                const isEmailChanged = profile.email !== newEmail;
+            // Exibe a área de exibição
+            flagDisplayContainer.classList.remove('scale-0', 'opacity-0');
+            flagDisplayContainer.classList.add('scale-100', 'opacity-100');
 
-                const dataToSave = { 
-                    username: newUsername, 
-                    email: newEmail, 
-                    profileImageUrl: newImageUrl, 
-                    lastUpdate: new Date(),
-                    isEmailVerified: isEmailChanged ? false : profile.isEmailVerified 
-                };
-                
-                const userDocRef = doc(db, `/artifacts/${appId}/users/${userId}/profile`, 'info');
-                await setDoc(userDocRef, dataToSave, { merge: true });
+            // Constrói a URL da bandeira
+            const flagUrl = `${FLAG_BASE_URL}${code}.png`;
 
-                profile.username = newUsername;
-                profile.email = newEmail;
-                profile.profileImageUrl = newImageUrl;
-                profile.isEmailVerified = dataToSave.isEmailVerified; 
+            // Configura a imagem e o texto
+            countryNameDisplay.textContent = name;
+            flagImage.src = flagUrl;
+            flagImage.alt = `Bandeira de ${name}`;
+            errorMessage.classList.add('hidden'); // Oculta qualquer mensagem de erro anterior
 
-                profileSetupModal.classList.add('hidden');
-                updateProfileUI(); 
-                checkGameAccess(); 
-                
-            } catch (error) {
-                console.error("Erro ao salvar perfil:", error);
-                // Erro comum aqui é o limite de 1MB do Firestore (se a imagem Base64 for muito grande)
-                if (error.code === 'resource-exhausted') {
-                    showModal('Erro Crítico', 'Falha ao salvar. Sua imagem de perfil ou dados são muito grandes. Por favor, use um arquivo menor que 250 KB.');
-                } else {
-                    showModal('Erro', `Falha ao salvar perfil: ${error.message}`);
-                }
+            // Manipulação de erro caso a imagem não carregue (ex: código inválido, falha de rede)
+            flagImage.onerror = () => {
+                flagImage.src = "https://placehold.co/160x120/555/eee?text=Erro"; // Placeholder de erro
+                errorMessage.classList.remove('hidden');
+                countryNameDisplay.textContent = `Não foi possível carregar a bandeira de ${name}.`;
+            };
+
+            // Remove o manipulador de erro após o sucesso (para evitar acionar em falhas subsequentes)
+            flagImage.onload = () => {
+                errorMessage.classList.add('hidden');
+            };
+        }
+
+        /**
+         * 3. Configura o Listener de Eventos
+         */
+        selectElement.addEventListener('change', (event) => {
+            const selectedCode = event.target.value;
+            const selectedOption = countries.find(c => c.code === selectedCode);
+
+            if (selectedOption) {
+                displayFlag(selectedOption.code, selectedOption.name);
             }
-        }
-        
-        // Confirmação simulada da verificação de e-mail
-        window.confirmEmailVerification = async function() {
-             if (!userId || !db || !profile.email) {
-                document.getElementById('verification-error').textContent = 'Erro de perfil. Tente recarregar.';
-                return;
-            }
-            
-            try {
-                // Atualiza o flag de verificação para true no Firestore
-                const userDocRef = doc(db, `/artifacts/${appId}/users/${userId}/profile`, 'info');
-                await setDoc(userDocRef, { isEmailVerified: true, verificationDate: new Date() }, { merge: true });
+        });
 
-                profile.isEmailVerified = true;
-                
-                verificationModal.classList.add('hidden');
-                updateProfileUI();
-                checkGameAccess(); 
-                
-                showModal('Sucesso!', `O e-mail ${profile.email} foi confirmado com sucesso. O jogo está liberado.`);
-
-            } catch (error) {
-                console.error("Erro ao confirmar verificação:", error);
-                document.getElementById('verification-error').textContent = `Falha na confirmação: ${error.message}`;
-            }
-        }
-
-
-        // --- Lógica do Jogo/Cronômetro (incompleta por ser apenas um esboço) ---
-
-        window.startGame = function() {
-            if (!isAuthReady || !profile.isEmailVerified) {
-                resultMessage.textContent = 'Aguarde a autenticação ou complete a verificação do e-mail.';
-                resultMessage.className = 'mt-4 p-3 rounded-lg text-center font-medium bg-yellow-100 text-yellow-700';
-                resultMessage.style.display = 'block';
-                checkGameAccess(); 
-                return;
-            }
-
-            // SIMULAÇÃO DE INÍCIO DE JOGO (sem lógica de clique ou desafio real)
-            gameActive = true;
-            startTime = Date.now();
-            timerDisplay.textContent = '0.000';
-            startButton.disabled = true;
-            stopButton.disabled = false;
-            resultMessage.style.display = 'none';
-            submissionStatus.style.display = 'none';
-
-            // Inicia o intervalo do cronômetro
-            timerInterval = setInterval(() => {
-                const elapsedTime = (Date.now() - startTime) / 1000;
-                timerDisplay.textContent = elapsedTime.toFixed(3);
-            }, 10);
-        }
-
-        window.stopGame = function() {
-            if (!gameActive) return;
-
-            clearInterval(timerInterval);
-            const endTime = Date.now();
-            const finalTime = (endTime - startTime) / 1000;
-
-            timerDisplay.textContent = finalTime.toFixed(3);
-
-            gameActive = false;
-            startButton.disabled = false;
-            stopButton.disabled = true;
-
-            resultMessage.textContent = `Seu Tempo: ${finalTime.toFixed(3)} segundos.`;
-            resultMessage.className = 'mt-4 p-3 rounded-lg text-center font-medium bg-blue-100 text-blue-700';
-            resultMessage.style.display = 'block';
-
-            // Submete a pontuação
-            submitScore(finalTime);
-        }
-
-        // --- Lógica de Submissão e Regra Única de Ranking ---
-
-        async function submitScore(time) {
-            if (!userId || !db || !profile.isEmailVerified) {
-                submissionStatus.textContent = 'Erro de submissão: Perfil incompleto ou não verificado.';
-                submissionStatus.className = 'mt-4 text-center text-sm text-red-500';
-                submissionStatus.style.display = 'block';
-                return;
-            }
-
-            submissionStatus.textContent = 'Verificando e submetendo sua pontuação...';
-            submissionStatus.className = 'mt-4 text-center text-sm text-gray-500';
-            submissionStatus.style.display = 'block';
-
-            const userDocRef = doc(db, LEADERBOARD_COLLECTION_PATH, userId);
-
-            try {
-                const docSnap = await getDoc(userDocRef);
-                const newScore = parseFloat(time.toFixed(3));
-                let shouldUpdate = false;
-                let message = '';
-
-                if (docSnap.exists()) {
-                    // Usuário já tem um registro. Verifica se o novo tempo é MELHOR (menor).
-                    const existingData = docSnap.data();
-                    const existingBestTime = existingData.bestTime;
-
-                    if (newScore < existingBestTime) {
-                        shouldUpdate = true;
-                        message = `Parabéns! Seu novo tempo (${newScore}s) é melhor que o seu recorde anterior (${existingBestTime}s). Ranking atualizado!`;
-                    } else {
-                        message = `Seu tempo atual (${newScore}s) não é melhor que seu recorde (**${existingBestTime}s**). O registro no ranking é único e não foi atualizado.`;
-                    }
-                } else {
-                    // Novo usuário. Cria o registro.
-                    shouldUpdate = true;
-                    message = `Novo recorde estabelecido! Seu tempo (${newScore}s) foi adicionado ao ranking.`;
-                }
-
-                if (shouldUpdate) {
-                    const dataToSave = {
-                        userId: userId,
-                        username: profile.username, 
-                        profileImageUrl: profile.profileImageUrl, // Salva o Base64 Data URL no ranking público
-                        bestTime: newScore,
-                        timestamp: Date.now()
-                    };
-
-                    await setDoc(userDocRef, dataToSave);
-
-                    submissionStatus.textContent = message;
-                    submissionStatus.className = 'mt-4 text-center text-sm text-green-700';
-                } else {
-                    submissionStatus.textContent = message;
-                    submissionStatus.className = 'mt-4 text-center text-sm text-yellow-700';
-                }
-
-            } catch (error) {
-                console.error("Erro ao submeter pontuação:", error);
-                submissionStatus.textContent = `Erro: Falha ao comunicar com o ranking. ${error.message}`;
-                submissionStatus.className = 'mt-4 text-center text-sm text-red-500';
-            }
-        }
-
-        // --- Lógica do Ranking em Tempo Real (onSnapshot) ---
-
-        function setupLeaderboardListener() {
-            const rankingRef = collection(db, LEADERBOARD_COLLECTION_PATH);
-            const q = query(rankingRef); 
-
-            onSnapshot(q, (snapshot) => {
-                const scores = [];
-                snapshot.forEach((doc) => {
-                    scores.push(doc.data());
-                });
-
-                // Ordena os scores no cliente pelo bestTime (menor tempo é melhor)
-                scores.sort((a, b) => a.bestTime - b.bestTime);
-                
-                // Encontra e atualiza o recorde pessoal na área de perfil
-                const currentUserScore = scores.find(s => s.userId === userId);
-                if (currentUserScore) {
-                    userBestTimeValueEl.textContent = currentUserScore.bestTime.toFixed(3);
-                } else {
-                    userBestTimeValueEl.textContent = '--.--';
-                }
-
-                renderLeaderboard(scores);
-            }, (error) => {
-                console.error("Erro ao ouvir o ranking:", error);
-                leaderboardBody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-red-500">Erro ao carregar o ranking: ${error.message}</td></tr>`;
-            });
-        }
-
-        function renderLeaderboard(scores) {
-            leaderboardBody.innerHTML = '';
-            if (scores.length === 0) {
-                leaderboardBody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-gray-500">Nenhum tempo submetido ainda. Seja o primeiro!</td></tr>`;
-                return;
-            }
-
-            scores.forEach((score, index) => {
-                const isCurrentUser = score.userId === userId;
-                const rowClass = isCurrentUser ? 'bg-indigo-100 font-bold text-indigo-800' : 'text-gray-700';
-                const row = document.createElement('tr');
-                row.className = `ranking-item ${rowClass}`;
-                
-                // Pega a imagem (Base64 ou nula)
-                const imageUrl = score.profileImageUrl || DEFAULT_RANKING_IMG;
-
-                // Não precisa de onerror para Base64, mas o DEFAULT_RANKING_IMG garante o fallback
-                row.innerHTML = `
-                    <td class="px-3 py-3 whitespace-nowrap text-sm text-center">${index + 1}</td>
-                    <td class="px-3 py-3 whitespace-nowrap text-sm text-center">
-                        <img src="${imageUrl}" onerror="this.src='${DEFAULT_RANKING_IMG}'" alt="" class="w-8 h-8 rounded-full object-cover mx-auto border-2 border-transparent ${isCurrentUser ? 'border-indigo-400' : ''}">
-                    </td>
-                    <td class="px-6 py-3 whitespace-nowrap text-sm font-medium">${score.username || 'Usuário Anônimo'}</td>
-                    <td class="px-6 py-3 whitespace-nowrap text-sm tabular-nums">${score.bestTime.toFixed(3)}</td>
-                    <td class="px-6 py-3 whitespace-nowrap text-xs truncate">${score.userId.substring(0, 8)}...</td>
-                `;
-                leaderboardBody.appendChild(row);
-            });
-        }
-
-        // --- Inicialização e Utilidades ---
-
-        // Função simples de modal (substitui alert)
-        function showModal(title, message) {
-            const existingModal = document.getElementById('simple-alert-modal');
-            if (existingModal) existingModal.remove();
-
-            const modalHtml = `
-                <div id="simple-alert-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]">
-                    <div class="bg-white p-6 rounded-lg shadow-2xl w-full max-w-sm">
-                        <h3 class="text-xl font-bold mb-3 text-gray-800">${title}</h3>
-                        <p class="text-gray-600 mb-4">${message}</p>
-                        <button onclick="document.getElementById('simple-alert-modal').remove()" class="w-full py-2 bg-primary text-white font-semibold rounded-lg hover:bg-blue-700">OK</button>
-                    </div>
-                </div>
-            `;
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
-        }
-        window.showModal = showModal; 
-
-        window.onload = initFirebase;
-
+        // Inicia a aplicação
+        window.onload = initializeSelect;
     </script>
+
 </body>
 </html>
