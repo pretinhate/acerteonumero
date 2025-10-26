@@ -42,10 +42,11 @@
         <div class="bg-white p-6 rounded-xl card border border-gray-100 h-fit">
             <h2 class="text-2xl font-semibold mb-4 text-gray-700">Seu Desafio</h2>
 
-            <!-- NOVO: Exibição do Recorde Pessoal/Perfil -->
+            <!-- Exibição do Recorde Pessoal/Perfil -->
             <div id="user-record-display" class="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
                 <p class="text-sm font-semibold text-blue-700 mb-1">Seu Nome: <span id="profile-username" class="font-bold text-blue-800">Carregando...</span></p>
                 <p class="text-lg font-bold text-blue-800">Seu Recorde: <span id="user-best-time-value" class="tabular-nums">--.--</span>s</p>
+                <div id="email-status-display" class="mt-2 text-sm font-medium"></div>
             </div>
             <!-- Fim NOVO -->
 
@@ -53,9 +54,10 @@
                 <p class="text-xl mb-4 font-medium text-gray-600">Tempo Atual:</p>
                 <div id="timer-display" class="text-6xl font-extrabold text-primary mb-6 tabular-nums">0.000</div>
                 <div class="space-y-4">
-                    <button id="start-button" onclick="startGame()" class="w-full py-3 px-6 bg-green-500 text-white font-bold rounded-lg shadow-lg hover:bg-green-600 transition duration-200 disabled:opacity-50">
+                    <button id="start-button" onclick="startGame()" class="w-full py-3 px-6 bg-green-500 text-white font-bold rounded-lg shadow-lg hover:bg-green-600 transition duration-200 disabled:opacity-50" disabled>
                         INICIAR TENTATIVA
                     </button>
+                    <p id="start-blocker-message" class="text-red-500 text-sm font-semibold">Preencha seu perfil e verifique o e-mail para jogar.</p>
                     <button id="stop-button" onclick="stopGame()" class="w-full py-3 px-6 bg-red-500 text-white font-bold rounded-lg shadow-lg hover:bg-red-600 transition duration-200 disabled:opacity-50" disabled>
                         PARAR TENTATIVA
                     </button>
@@ -87,18 +89,39 @@
         </div>
     </main>
 
-    <!-- Modal de Nome de Usuário (Necessário para a primeira submissão) -->
-    <div id="name-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 transition-opacity duration-300 hidden">
+    <!-- MODAL DE CONFIGURAÇÃO DE PERFIL (Nome + E-mail) -->
+    <div id="profile-setup-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 transition-opacity duration-300 hidden">
         <div class="bg-white p-6 rounded-xl w-full max-w-sm card">
-            <h3 class="text-xl font-bold mb-4">Escolha seu Nome de Usuário</h3>
-            <p class="text-sm text-gray-600 mb-4">Este nome será exibido no ranking. Você só precisa fazer isso uma vez.</p>
-            <input type="text" id="username-input" maxlength="20" placeholder="Ex: AtletaVeloz" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary">
-            <button onclick="saveUsername()" class="mt-4 w-full py-2 bg-primary text-white font-semibold rounded-lg hover:bg-blue-700 transition duration-200 disabled:opacity-50">
-                Confirmar
+            <h3 class="text-xl font-bold mb-4 text-gray-800">Complete seu Perfil</h3>
+            <p class="text-sm text-gray-600 mb-4">O nome será exibido no ranking, e o e-mail é necessário para validação do seu perfil.</p>
+            
+            <label for="username-input" class="block text-sm font-medium text-gray-700 mb-1">Nome de Usuário:</label>
+            <input type="text" id="username-input" maxlength="20" placeholder="Ex: AtletaVeloz" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary mb-3">
+
+            <label for="email-input" class="block text-sm font-medium text-gray-700 mb-1">Seu E-mail:</label>
+            <input type="email" id="email-input" placeholder="seu@email.com" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary">
+            
+            <button onclick="saveProfile()" class="mt-4 w-full py-2 bg-primary text-white font-semibold rounded-lg hover:bg-blue-700 transition duration-200 disabled:opacity-50">
+                Confirmar Perfil
             </button>
-            <p id="username-error" class="text-red-500 text-sm mt-2" style="display: none;">O nome de usuário é obrigatório.</p>
+            <p id="profile-error" class="text-red-500 text-sm mt-2" style="display: none;">Todos os campos são obrigatórios.</p>
         </div>
     </div>
+    
+    <!-- MODAL DE CONFIRMAÇÃO DE E-MAIL (Bloqueio) -->
+    <div id="verification-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 transition-opacity duration-300 hidden">
+        <div class="bg-white p-6 rounded-xl w-full max-w-sm card text-center">
+            <h3 class="text-2xl font-bold mb-3 text-red-600">Verificação Pendente!</h3>
+            <p class="text-gray-700 mb-4">Para iniciar o desafio, você precisa confirmar seu e-mail (<span id="unverified-email" class="font-semibold"></span>).</p>
+            <p class="text-sm text-gray-600 mb-6">Em uma aplicação real, um e-mail de verificação seria enviado. Por favor, clique no botão abaixo para simular a conclusão da verificação e desbloquear o jogo.</p>
+            
+            <button onclick="confirmEmailVerification()" class="w-full py-3 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600 transition duration-200">
+                CONFIRMAR VERIFICAÇÃO (Simulação)
+            </button>
+            <p id="verification-error" class="text-red-500 text-sm mt-2" style="display: none;"></p>
+        </div>
+    </div>
+
 
     <!-- FIREBASE SETUP & JAVASCRIPT LOGIC -->
     <script type="module">
@@ -115,7 +138,11 @@
         let db;
         let auth;
         let userId = null;
-        let username = null;
+        let profile = {
+            username: null,
+            email: null,
+            isEmailVerified: false
+        };
         let isAuthReady = false;
         let gameActive = false;
         let startTime = 0;
@@ -133,11 +160,18 @@
         const authStatus = document.getElementById('auth-status');
         const userIdDisplay = document.getElementById('user-id-display');
         const userIdValue = document.getElementById('user-id-value');
-        const nameModal = document.getElementById('name-modal');
-        const usernameInput = document.getElementById('username-input');
-        // NOVOS elementos do Perfil
+        
+        // Elementos do Perfil e Modais
         const profileUsernameEl = document.getElementById('profile-username');
         const userBestTimeValueEl = document.getElementById('user-best-time-value');
+        const emailStatusDisplayEl = document.getElementById('email-status-display');
+        const profileSetupModal = document.getElementById('profile-setup-modal');
+        const usernameInput = document.getElementById('username-input');
+        const emailInput = document.getElementById('email-input');
+        const profileErrorEl = document.getElementById('profile-error');
+        const verificationModal = document.getElementById('verification-modal');
+        const unverifiedEmailEl = document.getElementById('unverified-email');
+        const startBlockerMessageEl = document.getElementById('start-blocker-message');
 
 
         // Inicializa o Firebase e a Autenticação
@@ -155,11 +189,9 @@
                         userIdDisplay.classList.remove('hidden');
                         userIdValue.textContent = userId;
 
-                        // Tenta buscar o nome de usuário existente
                         await fetchUserData(userId);
 
                         isAuthReady = true;
-                        // Inicia o listener do ranking
                         if (db) {
                             setupLeaderboardListener();
                         }
@@ -178,39 +210,78 @@
             }
         }
 
-        // Função para buscar o nome de usuário no Firestore (coleção privada)
+        // Função para buscar o nome de usuário e status de verificação no Firestore (coleção privada)
         async function fetchUserData(uid) {
             const userDocRef = doc(db, `/artifacts/${appId}/users/${uid}/profile`, 'info');
             try {
                 const docSnap = await getDoc(userDocRef);
                 if (docSnap.exists()) {
                     const data = docSnap.data();
-                    username = data.username;
-                    profileUsernameEl.textContent = username; // Atualiza o nome do perfil
-                    // Se o nome de usuário for encontrado, não mostra o modal
-                } else {
-                    profileUsernameEl.textContent = 'Defina seu nome!';
-                    // Se o nome de usuário não existir, mostra o modal para o usuário escolher
-                    nameModal.classList.remove('hidden');
+                    profile.username = data.username || null;
+                    profile.email = data.email || null;
+                    // Garante que o campo exista; se ausente, assume false.
+                    profile.isEmailVerified = data.isEmailVerified === true; 
                 }
+                
+                updateProfileUI();
+
             } catch (error) {
                 console.error("Erro ao buscar dados do usuário:", error);
-                profileUsernameEl.textContent = 'Erro de carregamento';
-                // Em caso de erro, ainda mostra o modal
-                nameModal.classList.remove('hidden');
+            }
+            // A lógica de bloqueio de jogo e modais é chamada após a atualização da UI
+            checkGameAccess();
+        }
+
+        // Atualiza a UI com o status do perfil
+        function updateProfileUI() {
+            profileUsernameEl.textContent = profile.username || 'Defina seu nome!';
+
+            if (profile.isEmailVerified) {
+                emailStatusDisplayEl.innerHTML = `<span class="text-green-600">✓ E-mail (${profile.email}) verificado!</span>`;
+            } else if (profile.email) {
+                 emailStatusDisplayEl.innerHTML = `<span class="text-red-600">✕ E-mail (${profile.email}) **NÃO** verificado.</span>`;
+            } else {
+                emailStatusDisplayEl.innerHTML = `<span class="text-yellow-600">Preencha seu e-mail para verificar.</span>`;
+            }
+        }
+        
+        // Checa se o usuário pode começar a jogar
+        function checkGameAccess() {
+            // Caso 1: Usuário precisa preencher nome/email
+            if (!profile.username || !profile.email) {
+                profileSetupModal.classList.remove('hidden');
+                usernameInput.value = profile.username || '';
+                emailInput.value = profile.email || '';
+                startButton.disabled = true;
+                startBlockerMessageEl.textContent = 'Preencha seu perfil e verifique o e-mail para jogar.';
+                startBlockerMessageEl.classList.remove('hidden');
+            // Caso 2: Usuário preencheu, mas precisa verificar
+            } else if (!profile.isEmailVerified) {
+                profileSetupModal.classList.add('hidden');
+                unverifiedEmailEl.textContent = profile.email;
+                verificationModal.classList.remove('hidden');
+                startButton.disabled = true;
+                startBlockerMessageEl.textContent = 'Verificação de e-mail pendente. Clique em "Confirmar Verificação".';
+                startBlockerMessageEl.classList.remove('hidden');
+            // Caso 3: Tudo pronto
+            } else {
+                profileSetupModal.classList.add('hidden');
+                verificationModal.classList.add('hidden');
+                startButton.disabled = false;
+                startBlockerMessageEl.classList.add('hidden');
             }
         }
 
-        // Salva o nome de usuário e fecha o modal
-        window.saveUsername = async function() {
+        // Salva o perfil (Nome e E-mail)
+        window.saveProfile = async function() {
             const newUsername = usernameInput.value.trim();
-            const usernameError = document.getElementById('username-error');
+            const newEmail = emailInput.value.trim();
 
-            if (!newUsername) {
-                usernameError.style.display = 'block';
+            if (!newUsername || !newEmail) {
+                profileErrorEl.style.display = 'block';
                 return;
             }
-            usernameError.style.display = 'none';
+            profileErrorEl.style.display = 'none';
 
             if (!userId || !db) {
                 showModal('Erro', 'Autenticação não concluída. Tente novamente.');
@@ -218,30 +289,69 @@
             }
 
             try {
-                // Salva na coleção privada do usuário
-                const userDocRef = doc(db, `/artifacts/${appId}/users/${userId}/profile`, 'info');
-                await setDoc(userDocRef, { username: newUsername, lastUpdate: new Date() }, { merge: true });
+                // Se o e-mail mudou, a verificação deve ser redefinida
+                const isEmailChanged = profile.email !== newEmail;
 
-                username = newUsername;
-                profileUsernameEl.textContent = username; // Atualiza o nome do perfil
-                nameModal.classList.add('hidden');
-                // Se houver um resultado pendente, tenta submetê-lo
-                if (parseFloat(timerDisplay.textContent) > 0 && !gameActive) {
-                    submitScore(parseFloat(timerDisplay.textContent));
-                }
+                const dataToSave = { 
+                    username: newUsername, 
+                    email: newEmail, 
+                    lastUpdate: new Date(),
+                    // Se o e-mail mudou, a verificação é redefinida para false
+                    isEmailVerified: isEmailChanged ? false : profile.isEmailVerified 
+                };
+                
+                const userDocRef = doc(db, `/artifacts/${appId}/users/${userId}/profile`, 'info');
+                await setDoc(userDocRef, dataToSave, { merge: true });
+
+                profile.username = newUsername;
+                profile.email = newEmail;
+                profile.isEmailVerified = dataToSave.isEmailVerified; // Atualiza o status
+
+                profileSetupModal.classList.add('hidden');
+                updateProfileUI(); // Atualiza o perfil na UI
+                checkGameAccess(); // Chama a função para decidir se bloqueia ou libera o jogo
+                
             } catch (error) {
-                console.error("Erro ao salvar nome de usuário:", error);
-                showModal('Erro', `Falha ao salvar nome: ${error.message}`);
+                console.error("Erro ao salvar perfil:", error);
+                showModal('Erro', `Falha ao salvar perfil: ${error.message}`);
             }
         }
+        
+        // Confirmação simulada da verificação de e-mail
+        window.confirmEmailVerification = async function() {
+             if (!userId || !db || !profile.email) {
+                document.getElementById('verification-error').textContent = 'Erro de perfil. Tente recarregar.';
+                return;
+            }
+            
+            try {
+                // Atualiza o flag de verificação para true no Firestore
+                const userDocRef = doc(db, `/artifacts/${appId}/users/${userId}/profile`, 'info');
+                await setDoc(userDocRef, { isEmailVerified: true, verificationDate: new Date() }, { merge: true });
+
+                profile.isEmailVerified = true;
+                
+                verificationModal.classList.add('hidden');
+                updateProfileUI();
+                checkGameAccess(); // Libera o jogo
+                
+                showModal('Sucesso!', `O e-mail ${profile.email} foi confirmado com sucesso. O jogo está liberado.`);
+
+            } catch (error) {
+                console.error("Erro ao confirmar verificação:", error);
+                document.getElementById('verification-error').textContent = `Falha na confirmação: ${error.message}`;
+            }
+        }
+
 
         // --- Lógica do Jogo/Cronômetro ---
 
         window.startGame = function() {
-            if (!isAuthReady) {
-                resultMessage.textContent = 'Aguarde a autenticação.';
+            if (!isAuthReady || !profile.isEmailVerified) {
+                resultMessage.textContent = 'Aguarde a autenticação ou complete a verificação do e-mail.';
                 resultMessage.className = 'mt-4 p-3 rounded-lg text-center font-medium bg-yellow-100 text-yellow-700';
                 resultMessage.style.display = 'block';
+                checkGameAccess(); // Reforça o bloqueio
                 return;
             }
 
@@ -284,18 +394,10 @@
         // --- Lógica de Submissão e Regra Única de Ranking ---
 
         async function submitScore(time) {
-            if (!userId || !db) {
-                submissionStatus.textContent = 'Erro de submissão: Autenticação pendente.';
+            if (!userId || !db || !profile.isEmailVerified) {
+                submissionStatus.textContent = 'Erro de submissão: Perfil incompleto ou não verificado.';
                 submissionStatus.className = 'mt-4 text-center text-sm text-red-500';
                 submissionStatus.style.display = 'block';
-                return;
-            }
-
-            if (!username) {
-                submissionStatus.textContent = 'Por favor, defina seu nome de usuário primeiro no pop-up.';
-                submissionStatus.className = 'mt-4 text-center text-sm text-yellow-700';
-                submissionStatus.style.display = 'block';
-                nameModal.classList.remove('hidden');
                 return;
             }
 
@@ -320,7 +422,6 @@
                         shouldUpdate = true;
                         message = `Parabéns! Seu novo tempo (${newScore}s) é melhor que o seu recorde anterior (${existingBestTime}s). Ranking atualizado!`;
                     } else {
-                        // --- EDITADO: Mensagem mais clara de registro único ---
                         message = `Seu tempo atual (${newScore}s) não é melhor que seu recorde (**${existingBestTime}s**). O registro no ranking é único e não foi atualizado.`;
                     }
                 } else {
@@ -332,7 +433,7 @@
                 if (shouldUpdate) {
                     const dataToSave = {
                         userId: userId,
-                        username: username,
+                        username: profile.username, // Usa o nome de usuário do perfil
                         bestTime: newScore,
                         timestamp: Date.now()
                     };
@@ -357,7 +458,7 @@
 
         function setupLeaderboardListener() {
             const rankingRef = collection(db, LEADERBOARD_COLLECTION_PATH);
-            const q = query(rankingRef); // Sem orderBy para evitar a necessidade de índice composto, faremos a ordenação no cliente.
+            const q = query(rankingRef); 
 
             onSnapshot(q, (snapshot) => {
                 const scores = [];
@@ -368,9 +469,6 @@
                 // Ordena os scores no cliente pelo bestTime (menor tempo é melhor)
                 scores.sort((a, b) => a.bestTime - b.bestTime);
                 
-                // --- DEBUG: Loga os scores para verificar IDs únicos ---
-                console.log("Ranking de Scores (Unicos por UserId):", scores.map(s => ({ userId: s.userId, bestTime: s.bestTime })));
-
                 // Encontra e atualiza o recorde pessoal na área de perfil
                 const currentUserScore = scores.find(s => s.userId === userId);
                 if (currentUserScore) {
@@ -378,7 +476,6 @@
                 } else {
                     userBestTimeValueEl.textContent = '--.--';
                 }
-
 
                 renderLeaderboard(scores);
             }, (error) => {
@@ -409,7 +506,7 @@
             });
         }
 
-        // --- Inicialização ---
+        // --- Inicialização e Utilidades ---
 
         // Função simples de modal (substitui alert)
         function showModal(title, message) {
@@ -427,7 +524,7 @@
             `;
             document.body.insertAdjacentHTML('beforeend', modalHtml);
         }
-        window.showModal = showModal; // Expõe para uso no HTML
+        window.showModal = showModal; 
 
         window.onload = initFirebase;
 
