@@ -42,6 +42,13 @@
         <div class="bg-white p-6 rounded-xl card border border-gray-100 h-fit">
             <h2 class="text-2xl font-semibold mb-4 text-gray-700">Seu Desafio</h2>
 
+            <!-- NOVO: Exibição do Recorde Pessoal/Perfil -->
+            <div id="user-record-display" class="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <p class="text-sm font-semibold text-blue-700 mb-1">Seu Nome: <span id="profile-username" class="font-bold text-blue-800">Carregando...</span></p>
+                <p class="text-lg font-bold text-blue-800">Seu Recorde: <span id="user-best-time-value" class="tabular-nums">--.--</span>s</p>
+            </div>
+            <!-- Fim NOVO -->
+
             <div id="game-area" class="text-center p-8 bg-indigo-50 rounded-lg border-2 border-indigo-200">
                 <p class="text-xl mb-4 font-medium text-gray-600">Tempo Atual:</p>
                 <div id="timer-display" class="text-6xl font-extrabold text-primary mb-6 tabular-nums">0.000</div>
@@ -128,6 +135,10 @@
         const userIdValue = document.getElementById('user-id-value');
         const nameModal = document.getElementById('name-modal');
         const usernameInput = document.getElementById('username-input');
+        // NOVOS elementos do Perfil
+        const profileUsernameEl = document.getElementById('profile-username');
+        const userBestTimeValueEl = document.getElementById('user-best-time-value');
+
 
         // Inicializa o Firebase e a Autenticação
         function initFirebase() {
@@ -175,13 +186,16 @@
                 if (docSnap.exists()) {
                     const data = docSnap.data();
                     username = data.username;
+                    profileUsernameEl.textContent = username; // Atualiza o nome do perfil
                     // Se o nome de usuário for encontrado, não mostra o modal
                 } else {
+                    profileUsernameEl.textContent = 'Defina seu nome!';
                     // Se o nome de usuário não existir, mostra o modal para o usuário escolher
                     nameModal.classList.remove('hidden');
                 }
             } catch (error) {
                 console.error("Erro ao buscar dados do usuário:", error);
+                profileUsernameEl.textContent = 'Erro de carregamento';
                 // Em caso de erro, ainda mostra o modal
                 nameModal.classList.remove('hidden');
             }
@@ -209,6 +223,7 @@
                 await setDoc(userDocRef, { username: newUsername, lastUpdate: new Date() }, { merge: true });
 
                 username = newUsername;
+                profileUsernameEl.textContent = username; // Atualiza o nome do perfil
                 nameModal.classList.add('hidden');
                 // Se houver um resultado pendente, tenta submetê-lo
                 if (parseFloat(timerDisplay.textContent) > 0 && !gameActive) {
@@ -355,6 +370,15 @@
                 
                 // --- DEBUG: Loga os scores para verificar IDs únicos ---
                 console.log("Ranking de Scores (Unicos por UserId):", scores.map(s => ({ userId: s.userId, bestTime: s.bestTime })));
+
+                // Encontra e atualiza o recorde pessoal na área de perfil
+                const currentUserScore = scores.find(s => s.userId === userId);
+                if (currentUserScore) {
+                    userBestTimeValueEl.textContent = currentUserScore.bestTime.toFixed(3);
+                } else {
+                    userBestTimeValueEl.textContent = '--.--';
+                }
+
 
                 renderLeaderboard(scores);
             }, (error) => {
