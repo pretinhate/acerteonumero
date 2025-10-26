@@ -43,12 +43,14 @@
             <h2 class="text-2xl font-semibold mb-4 text-gray-700">Seu Desafio</h2>
 
             <!-- Exibição do Recorde Pessoal/Perfil -->
-            <div id="user-record-display" class="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <p class="text-sm font-semibold text-blue-700 mb-1">Seu Nome: <span id="profile-username" class="font-bold text-blue-800">Carregando...</span></p>
-                <p class="text-lg font-bold text-blue-800">Seu Recorde: <span id="user-best-time-value" class="tabular-nums">--.--</span>s</p>
-                <div id="email-status-display" class="mt-2 text-sm font-medium"></div>
+            <div id="user-record-display" class="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200 flex items-center space-x-4">
+                <img id="profile-image-display" src="https://placehold.co/48x48/cccccc/333333?text=P" alt="" class="w-12 h-12 rounded-full border-2 border-blue-400 object-cover">
+                <div>
+                    <p class="text-sm font-semibold text-blue-700 mb-1">Seu Nome: <span id="profile-username" class="font-bold text-blue-800">Carregando...</span></p>
+                    <p class="text-lg font-bold text-blue-800">Seu Recorde: <span id="user-best-time-value" class="tabular-nums">--.--</span>s</p>
+                    <div id="email-status-display" class="mt-1 text-sm font-medium"></div>
+                </div>
             </div>
-            <!-- Fim NOVO -->
 
             <div id="game-area" class="text-center p-8 bg-indigo-50 rounded-lg border-2 border-indigo-200">
                 <p class="text-xl mb-4 font-medium text-gray-600">Tempo Atual:</p>
@@ -76,35 +78,40 @@
                     <thead class="bg-gray-50">
                         <tr>
                             <th class="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-1/12">#</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-6/12">Usuário</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-1/12">Foto</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-5/12">Usuário</th>
                             <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-3/12">Melhor Tempo (s)</th>
                             <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-2/12">Seu ID</th>
                         </tr>
                     </thead>
                     <tbody id="leaderboard-body" class="bg-white divide-y divide-gray-200">
-                        <tr><td colspan="4" class="text-center py-4 text-gray-500">Carregando Ranking...</td></tr>
+                        <tr><td colspan="5" class="text-center py-4 text-gray-500">Carregando Ranking...</td></tr>
                     </tbody>
                 </table>
             </div>
         </div>
     </main>
 
-    <!-- MODAL DE CONFIGURAÇÃO DE PERFIL (Nome + E-mail) -->
+    <!-- MODAL DE CONFIGURAÇÃO DE PERFIL (Nome + E-mail + Foto LOCAL) -->
     <div id="profile-setup-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 transition-opacity duration-300 hidden">
         <div class="bg-white p-6 rounded-xl w-full max-w-sm card">
             <h3 class="text-xl font-bold mb-4 text-gray-800">Complete seu Perfil</h3>
-            <p class="text-sm text-gray-600 mb-4">O nome será exibido no ranking, e o e-mail é necessário para validação do seu perfil.</p>
+            <p class="text-sm text-gray-600 mb-4">O nome será exibido, o e-mail é para validação, e a foto é opcional (deve ser um arquivo pequeno).</p>
             
             <label for="username-input" class="block text-sm font-medium text-gray-700 mb-1">Nome de Usuário:</label>
             <input type="text" id="username-input" maxlength="20" placeholder="Ex: AtletaVeloz" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary mb-3">
 
             <label for="email-input" class="block text-sm font-medium text-gray-700 mb-1">Seu E-mail:</label>
-            <input type="email" id="email-input" placeholder="seu@email.com" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary">
+            <input type="email" id="email-input" placeholder="seu@email.com" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary mb-3">
             
+            <label for="profile-image-file-input" class="block text-sm font-medium text-gray-700 mb-1">Selecione uma Foto (Máx 250 KB):</label>
+            <input type="file" id="profile-image-file-input" accept="image/*" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary">
+            <p class="text-xs text-red-500 mt-1 mb-3">Aviso: A imagem será armazenada no banco de dados. Mantenha o arquivo pequeno (Max 250 KB) para evitar erros de limite de tamanho.</p>
+
             <button onclick="saveProfile()" class="mt-4 w-full py-2 bg-primary text-white font-semibold rounded-lg hover:bg-blue-700 transition duration-200 disabled:opacity-50">
                 Confirmar Perfil
             </button>
-            <p id="profile-error" class="text-red-500 text-sm mt-2" style="display: none;">Todos os campos são obrigatórios.</p>
+            <p id="profile-error" class="text-red-500 text-sm mt-2" style="display: none;">O Nome de Usuário e o E-mail são obrigatórios.</p>
         </div>
     </div>
     
@@ -127,13 +134,18 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot, collection, query, limit, getDoc, collectionGroup } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // Global Firebase variables are injected by the environment
+        import { getFirestore, doc, setDoc, onSnapshot, collection, query, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        // Variáveis globais Firebase injetadas pelo ambiente
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        
+        // URLs Padrão para imagem (serão usadas como fallback)
+        const DEFAULT_IMAGE_URL = "https://placehold.co/48x48/cccccc/333333?text=P";
+        const DEFAULT_RANKING_IMG = "https://placehold.co/32x32/eeeeee/333333?text=P";
+        const MAX_IMAGE_SIZE_BYTES = 250 * 1024; // 250 KB limite para Base64
+
 
         let db;
         let auth;
@@ -141,7 +153,8 @@
         let profile = {
             username: null,
             email: null,
-            isEmailVerified: false
+            isEmailVerified: false,
+            profileImageUrl: null, // Agora armazena Base64 Data URL
         };
         let isAuthReady = false;
         let gameActive = false;
@@ -168,10 +181,12 @@
         const profileSetupModal = document.getElementById('profile-setup-modal');
         const usernameInput = document.getElementById('username-input');
         const emailInput = document.getElementById('email-input');
+        const profileImageFileInput = document.getElementById('profile-image-file-input'); // NOVO INPUT: FILE
         const profileErrorEl = document.getElementById('profile-error');
         const verificationModal = document.getElementById('verification-modal');
         const unverifiedEmailEl = document.getElementById('unverified-email');
         const startBlockerMessageEl = document.getElementById('start-blocker-message');
+        const profileImageDisplayEl = document.getElementById('profile-image-display'); 
 
 
         // Inicializa o Firebase e a Autenticação
@@ -180,7 +195,6 @@
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
-                // setLogLevel('debug'); // Descomente para ver logs de debug do Firestore
 
                 onAuthStateChanged(auth, async (user) => {
                     if (user) {
@@ -210,7 +224,18 @@
             }
         }
 
-        // Função para buscar o nome de usuário e status de verificação no Firestore (coleção privada)
+        // Converte o objeto File para Base64 Data URL
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = (error) => reject(error);
+            });
+        }
+
+
+        // Função para buscar o perfil completo do usuário
         async function fetchUserData(uid) {
             const userDocRef = doc(db, `/artifacts/${appId}/users/${uid}/profile`, 'info');
             try {
@@ -219,8 +244,8 @@
                     const data = docSnap.data();
                     profile.username = data.username || null;
                     profile.email = data.email || null;
-                    // Garante que o campo exista; se ausente, assume false.
                     profile.isEmailVerified = data.isEmailVerified === true; 
+                    profile.profileImageUrl = data.profileImageUrl || null; 
                 }
                 
                 updateProfileUI();
@@ -228,13 +253,19 @@
             } catch (error) {
                 console.error("Erro ao buscar dados do usuário:", error);
             }
-            // A lógica de bloqueio de jogo e modais é chamada após a atualização da UI
             checkGameAccess();
         }
 
         // Atualiza a UI com o status do perfil
         function updateProfileUI() {
             profileUsernameEl.textContent = profile.username || 'Defina seu nome!';
+
+            // Atualiza a imagem de perfil. Se tiver Base64, usa. Se não, usa fallback URL.
+            profileImageDisplayEl.src = profile.profileImageUrl || DEFAULT_IMAGE_URL;
+            // Se for uma URL e falhar (ex: imagem deletada), usa o placeholder.
+            if (!profile.profileImageUrl || profile.profileImageUrl.startsWith('http')) {
+                 profileImageDisplayEl.onerror = () => { profileImageDisplayEl.src = DEFAULT_IMAGE_URL; };
+            }
 
             if (profile.isEmailVerified) {
                 emailStatusDisplayEl.innerHTML = `<span class="text-green-600">✓ E-mail (${profile.email}) verificado!</span>`;
@@ -247,7 +278,11 @@
         
         // Checa se o usuário pode começar a jogar
         function checkGameAccess() {
-            // Caso 1: Usuário precisa preencher nome/email
+            // Limpa o input file para que não salve o mesmo arquivo a cada abertura de modal
+            if (profileSetupModal.classList.contains('hidden')) {
+                profileImageFileInput.value = ''; 
+            }
+
             if (!profile.username || !profile.email) {
                 profileSetupModal.classList.remove('hidden');
                 usernameInput.value = profile.username || '';
@@ -255,7 +290,6 @@
                 startButton.disabled = true;
                 startBlockerMessageEl.textContent = 'Preencha seu perfil e verifique o e-mail para jogar.';
                 startBlockerMessageEl.classList.remove('hidden');
-            // Caso 2: Usuário preencheu, mas precisa verificar
             } else if (!profile.isEmailVerified) {
                 profileSetupModal.classList.add('hidden');
                 unverifiedEmailEl.textContent = profile.email;
@@ -263,7 +297,6 @@
                 startButton.disabled = true;
                 startBlockerMessageEl.textContent = 'Verificação de e-mail pendente. Clique em "Confirmar Verificação".';
                 startBlockerMessageEl.classList.remove('hidden');
-            // Caso 3: Tudo pronto
             } else {
                 profileSetupModal.classList.add('hidden');
                 verificationModal.classList.add('hidden');
@@ -272,17 +305,39 @@
             }
         }
 
-        // Salva o perfil (Nome e E-mail)
+        // Salva o perfil (Nome, E-mail e Foto LOCAL)
         window.saveProfile = async function() {
             const newUsername = usernameInput.value.trim();
             const newEmail = emailInput.value.trim();
+            const imageFile = profileImageFileInput.files[0];
+            let newImageUrl = profile.profileImageUrl; // Mantém a Base64 atual se nenhum arquivo for selecionado
 
             if (!newUsername || !newEmail) {
+                profileErrorEl.textContent = 'O Nome de Usuário e o E-mail são obrigatórios.';
                 profileErrorEl.style.display = 'block';
                 return;
             }
             profileErrorEl.style.display = 'none';
 
+
+            if (imageFile) {
+                if (imageFile.size > MAX_IMAGE_SIZE_BYTES) {
+                    profileErrorEl.textContent = `A imagem é muito grande. Tamanho máximo: ${MAX_IMAGE_SIZE_BYTES / 1024} KB.`;
+                    profileErrorEl.style.display = 'block';
+                    return;
+                }
+
+                // Converte o arquivo para Base64 Data URL
+                try {
+                    newImageUrl = await fileToBase64(imageFile);
+                    profileImageFileInput.value = ''; // Limpa o input após o processamento
+                } catch (e) {
+                    profileErrorEl.textContent = 'Falha ao processar a imagem. Tente outra foto.';
+                    profileErrorEl.style.display = 'block';
+                    return;
+                }
+            }
+            
             if (!userId || !db) {
                 showModal('Erro', 'Autenticação não concluída. Tente novamente.');
                 return;
@@ -295,8 +350,8 @@
                 const dataToSave = { 
                     username: newUsername, 
                     email: newEmail, 
+                    profileImageUrl: newImageUrl, 
                     lastUpdate: new Date(),
-                    // Se o e-mail mudou, a verificação é redefinida para false
                     isEmailVerified: isEmailChanged ? false : profile.isEmailVerified 
                 };
                 
@@ -305,15 +360,21 @@
 
                 profile.username = newUsername;
                 profile.email = newEmail;
-                profile.isEmailVerified = dataToSave.isEmailVerified; // Atualiza o status
+                profile.profileImageUrl = newImageUrl;
+                profile.isEmailVerified = dataToSave.isEmailVerified; 
 
                 profileSetupModal.classList.add('hidden');
-                updateProfileUI(); // Atualiza o perfil na UI
-                checkGameAccess(); // Chama a função para decidir se bloqueia ou libera o jogo
+                updateProfileUI(); 
+                checkGameAccess(); 
                 
             } catch (error) {
                 console.error("Erro ao salvar perfil:", error);
-                showModal('Erro', `Falha ao salvar perfil: ${error.message}`);
+                // Erro comum aqui é o limite de 1MB do Firestore (se a imagem Base64 for muito grande)
+                if (error.code === 'resource-exhausted') {
+                    showModal('Erro Crítico', 'Falha ao salvar. Sua imagem de perfil ou dados são muito grandes. Por favor, use um arquivo menor que 250 KB.');
+                } else {
+                    showModal('Erro', `Falha ao salvar perfil: ${error.message}`);
+                }
             }
         }
         
@@ -333,7 +394,7 @@
                 
                 verificationModal.classList.add('hidden');
                 updateProfileUI();
-                checkGameAccess(); // Libera o jogo
+                checkGameAccess(); 
                 
                 showModal('Sucesso!', `O e-mail ${profile.email} foi confirmado com sucesso. O jogo está liberado.`);
 
@@ -344,17 +405,18 @@
         }
 
 
-        // --- Lógica do Jogo/Cronômetro ---
+        // --- Lógica do Jogo/Cronômetro (incompleta por ser apenas um esboço) ---
 
         window.startGame = function() {
             if (!isAuthReady || !profile.isEmailVerified) {
                 resultMessage.textContent = 'Aguarde a autenticação ou complete a verificação do e-mail.';
                 resultMessage.className = 'mt-4 p-3 rounded-lg text-center font-medium bg-yellow-100 text-yellow-700';
                 resultMessage.style.display = 'block';
-                checkGameAccess(); // Reforça o bloqueio
+                checkGameAccess(); 
                 return;
             }
 
+            // SIMULAÇÃO DE INÍCIO DE JOGO (sem lógica de clique ou desafio real)
             gameActive = true;
             startTime = Date.now();
             timerDisplay.textContent = '0.000';
@@ -433,7 +495,8 @@
                 if (shouldUpdate) {
                     const dataToSave = {
                         userId: userId,
-                        username: profile.username, // Usa o nome de usuário do perfil
+                        username: profile.username, 
+                        profileImageUrl: profile.profileImageUrl, // Salva o Base64 Data URL no ranking público
                         bestTime: newScore,
                         timestamp: Date.now()
                     };
@@ -480,14 +543,14 @@
                 renderLeaderboard(scores);
             }, (error) => {
                 console.error("Erro ao ouvir o ranking:", error);
-                leaderboardBody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-red-500">Erro ao carregar o ranking: ${error.message}</td></tr>`;
+                leaderboardBody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-red-500">Erro ao carregar o ranking: ${error.message}</td></tr>`;
             });
         }
 
         function renderLeaderboard(scores) {
             leaderboardBody.innerHTML = '';
             if (scores.length === 0) {
-                leaderboardBody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-gray-500">Nenhum tempo submetido ainda. Seja o primeiro!</td></tr>`;
+                leaderboardBody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-gray-500">Nenhum tempo submetido ainda. Seja o primeiro!</td></tr>`;
                 return;
             }
 
@@ -496,8 +559,16 @@
                 const rowClass = isCurrentUser ? 'bg-indigo-100 font-bold text-indigo-800' : 'text-gray-700';
                 const row = document.createElement('tr');
                 row.className = `ranking-item ${rowClass}`;
+                
+                // Pega a imagem (Base64 ou nula)
+                const imageUrl = score.profileImageUrl || DEFAULT_RANKING_IMG;
+
+                // Não precisa de onerror para Base64, mas o DEFAULT_RANKING_IMG garante o fallback
                 row.innerHTML = `
                     <td class="px-3 py-3 whitespace-nowrap text-sm text-center">${index + 1}</td>
+                    <td class="px-3 py-3 whitespace-nowrap text-sm text-center">
+                        <img src="${imageUrl}" onerror="this.src='${DEFAULT_RANKING_IMG}'" alt="" class="w-8 h-8 rounded-full object-cover mx-auto border-2 border-transparent ${isCurrentUser ? 'border-indigo-400' : ''}">
+                    </td>
                     <td class="px-6 py-3 whitespace-nowrap text-sm font-medium">${score.username || 'Usuário Anônimo'}</td>
                     <td class="px-6 py-3 whitespace-nowrap text-sm tabular-nums">${score.bestTime.toFixed(3)}</td>
                     <td class="px-6 py-3 whitespace-nowrap text-xs truncate">${score.userId.substring(0, 8)}...</td>
